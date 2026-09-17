@@ -35,13 +35,138 @@ function moves(x) {
 
   return p.moves.slice(0, 4);
 }
-window.makeTeam = function(){
- let names=document.getElementById("seed").value.split(",").map(x=>x.trim()).filter(Boolean),t=[],used=new Set();
- for(let x of names){let p=findP(x);if(p&&!used.has(n(p.name))){t.push(p);used.add(n(p.name))}}
- for(let p of D.pokemon){if(t.length>=6)break;if(!used.has(n(p.name))){t.push(p);used.add(n(p.name))}}
- let out=t.map(p=>({name:p.name,types:p.types||[],sp:{hp:0,atk:0,def:0,spa:0,spd:0,spe:0},ability:Object.values(p.abilities||{})[0]||"",item:"",moves:moves(p.name)}));
- document.getElementById("teamOut").textContent=JSON.stringify(out,null,2)
-}
+window.makeTeam = function () {
+  const names = document
+    .getElementById("seed")
+    .value
+    .split(",")
+    .map(x => x.trim())
+    .filter(Boolean);
+
+  const team = [];
+  const used = new Set();
+
+  function getRole(p) {
+    const b = p.baseStats || {};
+
+    const atk = Number(b.atk || 0);
+    const spa = Number(b.spa || 0);
+    const spe = Number(b.spe || 0);
+    const hp  = Number(b.hp || 0);
+    const def = Number(b.def || 0);
+    const spd = Number(b.spd || 0);
+
+    if (atk >= spa + 15) {
+      return spe >= 90 ? "physical_fast" : "physical";
+    }
+
+    if (spa >= atk + 15) {
+      return spe >= 90 ? "special_fast" : "special";
+    }
+
+    if (spe >= 100) {
+      return "fast";
+    }
+
+    if (hp + def + spd >= 270) {
+      return "bulk";
+    }
+
+    return atk >= spa ? "physical" : "special";
+  }
+
+  function makeSP(p) {
+    const role = getRole(p);
+
+    const sp = {
+      hp: 0,
+      atk: 0,
+      def: 0,
+      spa: 0,
+      spd: 0,
+      spe: 0
+    };
+
+    const plans = {
+      physical_fast: ["atk", "spe", "hp"],
+      physical: ["atk", "hp", "spe"],
+      special_fast: ["spa", "spe", "hp"],
+      special: ["spa", "hp", "spe"],
+      fast: ["spe", "atk", "spa"],
+      bulk: ["hp", "def", "spd"]
+    };
+
+    const priority = plans[role] || ["hp", "atk", "spe"];
+
+    let remaining = 66;
+
+    const first = priority[0];
+    sp[first] = Math.min(32, remaining);
+    remaining -= sp[first];
+
+    const second = priority[1];
+    sp[second] = Math.min(32, remaining);
+    remaining -= sp[second];
+
+    const third = priority[2];
+
+    if (remaining > 0) {
+      sp[third] = Math.min(32, remaining);
+      remaining -= sp[third];
+    }
+
+    if (remaining > 0) {
+      const order = ["hp", "atk", "def", "spa", "spd", "spe"];
+
+      for (const stat of order) {
+        if (remaining <= 0) break;
+
+        const add = Math.min(
+          32 - sp[stat],
+          remaining
+        );
+
+        sp[stat] += add;
+        remaining -= add;
+      }
+    }
+
+    return sp;
+  }
+
+  for (const name of names) {
+    const p = findP(name);
+
+    if (p && !used.has(n(p.name))) {
+      team.push(p);
+      used.add(n(p.name));
+    }
+  }
+
+  for (const p of D.pokemon) {
+    if (team.length >= 6) break;
+
+    if (!used.has(n(p.name))) {
+      team.push(p);
+      used.add(n(p.name));
+    }
+  }
+
+  const output = team.map(p => ({
+    name: p.name,
+    types: p.types || [],
+    sp: makeSP(p),
+    ability:
+      Array.isArray(p.abilities)
+        ? p.abilities[0] || ""
+        : Object.values(p.abilities || {})[0] || "",
+    item: "",
+    moves: moves(p.name)
+  }));
+
+  document.getElementById("teamOut").textContent =
+    JSON.stringify(output, null, 2);
+};
 function legal(){
  try{let t=JSON.parse(document.getElementById("legalIn").value),e=[],seen=new Set();if(!Array.isArray(t)||t.length!=6)e.push("6体必要");
  t.forEach(p=>{if(seen.has(n(p.name)))e.push("同種重複: "+p.name);seen.add(n(p.name));let s=p.sp||{},sum=Object.values(s).reduce((a,b)=>a+(+b||0),0);if(sum>66)e.push(p.name+": SP合計66超過");if(Object.values(s).some(v=>+v>32))e.push(p.name+": 1能力32超過");if(!findP(p.name))e.push("未知ポケモン: "+p.name)});document.getElementById("legalOut").textContent=JSON.stringify({valid:e.length==0,errors:e},null,2)
