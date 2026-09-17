@@ -343,3 +343,5 @@ const LocalData = (() => {
     getItem
   };
 })();
+
+window.LocalData = LocalData;
