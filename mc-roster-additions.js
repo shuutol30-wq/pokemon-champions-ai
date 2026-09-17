@@ -42,5 +42,20 @@ const MC_ROSTER_ADDITIONS = {
     "Mega Lucario Z"
   ]
 };
+MC_ROSTER_ADDITIONS.pokemonData = MC_ROSTER_ADDITIONS.newPokemon.map(name => ({
+  name,
+  types: [],
+  baseStats: {
+    hp: 0,
+    atk: 0,
+    def: 0,
+    spa: 0,
+    spd: 0,
+    spe: 0
+  },
+  abilities: [],
+  moves: [],
+  regulations: ["M-C"]
+}));
 
 window.MC_ROSTER_ADDITIONS = MC_ROSTER_ADDITIONS;
