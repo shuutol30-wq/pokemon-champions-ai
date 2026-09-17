@@ -312,10 +312,12 @@ const BattleEngine = (() => {
         ) / 50
       ) + 2;
 
-    const stab =
-      (attacker.types || []).includes(move.type)
-        ? 1.5
-        : 1;
+   const stab =
+  effectiveness === 0
+    ? 1
+    : attackerTypes.includes(type)
+      ? 1.5
+      : 1;
 
     const effectiveness =
       typeEffectiveness(
