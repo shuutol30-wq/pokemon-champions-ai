@@ -476,3 +476,269 @@ console.log(
   "M-C abilities loaded:",
   Object.keys(MC_ABILITIES).length
 );
+const MC_MOVES = {
+  "Fake Out": {
+    type: "Normal",
+    category: "Physical",
+    power: 40,
+    accuracy: 100,
+    priority: 3
+  },
+
+  "Thunderbolt": {
+    type: "Electric",
+    category: "Special",
+    power: 90,
+    accuracy: 100,
+    priority: 0
+  },
+
+  "Volt Switch": {
+    type: "Electric",
+    category: "Special",
+    power: 70,
+    accuracy: 100,
+    priority: 0,
+    switchAfter: true
+  },
+
+  "Protect": {
+    type: "Normal",
+    category: "Status",
+    power: 0,
+    accuracy: 100,
+    priority: 4,
+    protect: true
+  },
+
+  "Play Rough": {
+    type: "Fairy",
+    category: "Physical",
+    power: 90,
+    accuracy: 90,
+    priority: 0
+  },
+
+  "Dazzling Gleam": {
+    type: "Fairy",
+    category: "Special",
+    power: 80,
+    accuracy: 100,
+    priority: 0
+  },
+
+  "Flamethrower": {
+    type: "Fire",
+    category: "Special",
+    power: 90,
+    accuracy: 100,
+    priority: 0
+  },
+
+  "Earthquake": {
+    type: "Ground",
+    category: "Physical",
+    power: 100,
+    accuracy: 100,
+    priority: 0
+  },
+
+  "Dragon Claw": {
+    type: "Dragon",
+    category: "Physical",
+    power: 80,
+    accuracy: 100,
+    priority: 0
+  },
+
+  "Dragon Dance": {
+    type: "Dragon",
+    category: "Status",
+    power: 0,
+    accuracy: 100,
+    priority: 0,
+    boosts: {
+      atk: 1,
+      spe: 1
+    }
+  },
+
+  "Brave Bird": {
+    type: "Flying",
+    category: "Physical",
+    power: 120,
+    accuracy: 100,
+    priority: 0
+  },
+
+  "Wood Hammer": {
+    type: "Grass",
+    category: "Physical",
+    power: 120,
+    accuracy: 100,
+    priority: 0
+  },
+
+  "Grassy Glide": {
+    type: "Grass",
+    category: "Physical",
+    power: 55,
+    accuracy: 100,
+    priority: 0
+  },
+
+  "High Jump Kick": {
+    type: "Fighting",
+    category: "Physical",
+    power: 130,
+    accuracy: 90,
+    priority: 0
+  },
+
+  "Pyro Ball": {
+    type: "Fire",
+    category: "Physical",
+    power: 120,
+    accuracy: 90,
+    priority: 0
+  },
+
+  "Aqua Jet": {
+    type: "Water",
+    category: "Physical",
+    power: 40,
+    accuracy: 100,
+    priority: 1
+  },
+
+  "Sucker Punch": {
+    type: "Dark",
+    category: "Physical",
+    power: 70,
+    accuracy: 100,
+    priority: 1
+  },
+
+  "Knock Off": {
+    type: "Dark",
+    category: "Physical",
+    power: 65,
+    accuracy: 100,
+    priority: 0
+  },
+
+  "Close Combat": {
+    type: "Fighting",
+    category: "Physical",
+    power: 120,
+    accuracy: 100,
+    priority: 0
+  },
+
+  "Drain Punch": {
+    type: "Fighting",
+    category: "Physical",
+    power: 75,
+    accuracy: 100,
+    priority: 0
+  },
+
+  "Iron Head": {
+    type: "Steel",
+    category: "Physical",
+    power: 80,
+    accuracy: 100,
+    priority: 0
+  },
+
+  "Leaf Storm": {
+    type: "Grass",
+    category: "Special",
+    power: 130,
+    accuracy: 90,
+    priority: 0
+  },
+
+  "Energy Ball": {
+    type: "Grass",
+    category: "Special",
+    power: 90,
+    accuracy: 100,
+    priority: 0
+  },
+
+  "Hyper Voice": {
+    type: "Normal",
+    category: "Special",
+    power: 90,
+    accuracy: 100,
+    priority: 0
+  },
+
+  "Ice Shard": {
+    type: "Ice",
+    category: "Physical",
+    power: 40,
+    accuracy: 100,
+    priority: 1
+  },
+
+  "Icicle Crash": {
+    type: "Ice",
+    category: "Physical",
+    power: 85,
+    accuracy: 90,
+    priority: 0
+  }
+};
+
+for (const [name, move] of Object.entries(MC_MOVES)) {
+  if (!LocalData.moves[name]) {
+    LocalData.moves[name] = move;
+  }
+}
+
+const MC_DEFAULT_MOVES = {
+  "Wigglytuff": ["Dazzling Gleam", "Hyper Voice", "Protect", "Thunderbolt"],
+  "Persian": ["Fake Out", "Knock Off", "Play Rough", "Protect"],
+  "Alolan Persian": ["Knock Off", "Sucker Punch", "Play Rough", "Protect"],
+  "Farfetch'd": ["Brave Bird", "Knock Off", "Close Combat", "Protect"],
+  "Mr. Mime": ["Dazzling Gleam", "Psychic", "Protect", "Thunderbolt"],
+  "Swalot": ["Protect", "Earthquake", "Knock Off", "Flamethrower"],
+  "Salamence": ["Dragon Claw", "Brave Bird", "Earthquake", "Dragon Dance"],
+  "Gogoat": ["Wood Hammer", "Earthquake", "Protect", "Drain Punch"],
+  "Golisopod": ["First Impression", "Liquidation", "Aqua Jet", "Protect"],
+  "Rillaboom": ["Grassy Glide", "Wood Hammer", "Knock Off", "Protect"],
+  "Cinderace": ["Pyro Ball", "High Jump Kick", "Sucker Punch", "Protect"],
+  "Inteleon": ["Hydro Pump", "Ice Beam", "Protect", "U-turn"],
+  "Thievul": ["Knock Off", "Sucker Punch", "Protect", "Nasty Plot"],
+  "Toxtricity": ["Thunderbolt", "Volt Switch", "Protect", "Hyper Voice"],
+  "Toxtricity-Low-Key": ["Thunderbolt", "Volt Switch", "Protect", "Hyper Voice"],
+  "Grapploct": ["Drain Punch", "Close Combat", "Knock Off", "Protect"],
+  "Perrserker": ["Iron Head", "Close Combat", "Knock Off", "Protect"],
+  "Sirfetch'd": ["Close Combat", "Brave Bird", "Knock Off", "Protect"],
+  "Pincurchin": ["Thunderbolt", "Volt Switch", "Protect", "Sucker Punch"],
+  "Indeedee": ["Psychic", "Dazzling Gleam", "Protect", "Hyper Voice"],
+  "Indeedee-Female": ["Psychic", "Dazzling Gleam", "Protect", "Hyper Voice"],
+  "Pawmot": ["Close Combat", "Thunderbolt", "Volt Switch", "Protect"],
+  "Arboliva": ["Energy Ball", "Leaf Storm", "Hyper Voice", "Protect"],
+  "Squawkabilly": ["Brave Bird", "Knock Off", "Protect", "Sucker Punch"],
+  "Squawkabilly-Blue": ["Brave Bird", "Knock Off", "Protect", "Sucker Punch"],
+  "Squawkabilly-Yellow": ["Brave Bird", "Knock Off", "Protect", "Sucker Punch"],
+  "Squawkabilly-White": ["Brave Bird", "Knock Off", "Protect", "Sucker Punch"],
+  "Mabosstiff": ["Knock Off", "Sucker Punch", "Play Rough", "Protect"],
+  "Baxcalibur": ["Icicle Crash", "Ice Shard", "Dragon Claw", "Protect"]
+};
+
+for (const [pokemonName, moveNames] of Object.entries(MC_DEFAULT_MOVES)) {
+  const p = LocalData.getPokemon(pokemonName);
+
+  if (p) {
+    p.moves = moveNames.filter(moveName => LocalData.moves[moveName]);
+  }
+}
+
+console.log(
+  "M-C moves loaded:",
+  Object.keys(MC_MOVES).length
+);
