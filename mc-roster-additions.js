@@ -59,3 +59,15 @@ MC_ROSTER_ADDITIONS.pokemonData = MC_ROSTER_ADDITIONS.newPokemon.map(name => ({
 }));
 
 window.MC_ROSTER_ADDITIONS = MC_ROSTER_ADDITIONS;
+if (window.LocalData && Array.isArray(window.LocalData.pokemon)) {
+  for (const p of MC_ROSTER_ADDITIONS.pokemonData) {
+    if (!window.LocalData.pokemon.some(x => x.name === p.name)) {
+      window.LocalData.pokemon.push(p);
+    }
+  }
+}
+
+console.log(
+  "M-C Pokémon added:",
+  MC_ROSTER_ADDITIONS.pokemonData.length
+);
