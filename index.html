@@ -15,1104 +15,1325 @@ textarea,input{box-sizing:border-box;width:100%;padding:9px;border:1px solid #cc
 <section id="battle"><h2>対戦AI</h2><textarea id="battleIn" placeholder='{"me":{"active":{...},"bench":[]},"opp":{"active":{...},"bench":[]}}'></textarea><label>探索深度</label><input id="depth" type="number" value="4" min="1" max="8"><button class="p" onclick="battle()">探索</button><pre id="battleOut"></pre></section>
 <section id="review"><h2>対戦レビュー</h2><textarea id="replayIn" placeholder='{"turns":[...]}'></textarea><button class="p" onclick="review()">採点</button><pre id="reviewOut"></pre></section>
 </main>
+```html
 <script src="./data.js"></script>
-<script src="./mc-roster-additions.js"></script>
 <script src="./mc-pokemon-data.js"></script>
+<script src="./mc-roster-additions.js"></script>
 <script src="./battle-engine.js"></script>
+
 <script>
-const ROOT="https://raw.githubusercontent.com/otterlyclueless/pokemon-champions-data/main/";
-const n=s=>String(s||"").toLowerCase().replace(/[ -]/g,"");
-async function j(p){let r=await fetch(ROOT+p);if(!r.ok)throw Error(p+" の取得に失敗");return r.json()}
-function tab(id){document.querySelectorAll("section").forEach(x=>x.classList.remove("on"));document.getElementById(id).classList.add("on")}
-const D = {
-  pokemon: LocalData.pokemon,
-  moves: LocalData.moves,
-  abilities: LocalData.abilities,
-  items: LocalData.items,
-  learnsets: {},
-  base: Object.fromEntries(
-    LocalData.pokemon.map(p => [
-      p.name.toLowerCase(),
-      p.baseStats
-    ])
-  )
-};
+/* =========================
+   共通
+========================= */
 
-function findP(x){return D.pokemon.find(p=>n(p.name)==n(x))}
-function base(x){return D.base[n(x)]||{}}
-function moves(x) {
-  const p = LocalData.getPokemon(x);
+const ROOT =
+  "https://raw.githubusercontent.com/otterlyclueless/pokemon-champions-data/main/";
 
-  if (!p || !Array.isArray(p.moves)) {
+const n = s =>
+  String(s || "")
+    .toLowerCase()
+    .replace(/[ -]/g, "");
+
+
+/* =========================
+   タブ切り替え
+========================= */
+
+function tab(id) {
+  document
+    .querySelectorAll("section")
+    .forEach(x => x.classList.remove("on"));
+
+  const el = document.getElementById(id);
+
+  if (el) {
+    el.classList.add("on");
+  }
+}
+
+
+/* =========================
+   M-Cデータを安全に取得
+========================= */
+
+function mcPokemonList() {
+  if (typeof MC_POKEMON_DATA === "undefined") {
     return [];
   }
 
-  return p.moves.slice(0, 4);
-}
-window.makeTeam = function () {
-  const names = document
-    .getElementById("seed")
-    .value
-    .split(",")
-    .map(x => x.trim())
-    .filter(Boolean);
-
-  const team = [];
-  const used = new Set();
-
-  function getRole(p) {
-    const b = p.baseStats || {};
-
-    const atk = Number(b.atk || 0);
-    const spa = Number(b.spa || 0);
-    const spe = Number(b.spe || 0);
-    const hp  = Number(b.hp || 0);
-    const def = Number(b.def || 0);
-    const spd = Number(b.spd || 0);
-
-    if (atk >= spa + 15) {
-      return spe >= 90 ? "physical_fast" : "physical";
-    }
-
-    if (spa >= atk + 15) {
-      return spe >= 90 ? "special_fast" : "special";
-    }
-
-    if (spe >= 100) {
-      return "fast";
-    }
-
-    if (hp + def + spd >= 270) {
-      return "bulk";
-    }
-
-    return atk >= spa ? "physical" : "special";
+  if (Array.isArray(MC_POKEMON_DATA)) {
+    return MC_POKEMON_DATA;
   }
 
-function makeSP(p) {
-  const b = p.baseStats || {};
+  if (typeof MC_POKEMON_DATA === "object") {
+    return Object.entries(MC_POKEMON_DATA).map(
+      ([name, data]) => ({
+        name,
+        ...(data || {})
+      })
+    );
+  }
+
+  return [];
+}
+
+
+function mcFind(name) {
+  const list = mcPokemonList();
+
+  return list.find(
+    p => n(p.name) === n(name)
+  );
+}
+
+
+/* =========================
+   Dデータベース構築
+========================= */
+
+const basePokemon =
+  Array.isArray(LocalData.pokemon)
+    ? LocalData.pokemon
+    : [];
+
+
+const mcList = mcPokemonList();
+
+
+/*
+ * 同名ポケモンはM-Cデータを優先して統合
+ */
+const pokemonMap = new Map();
+
+
+for (const p of basePokemon) {
+  pokemonMap.set(n(p.name), {
+    ...p
+  });
+}
+
+
+for (const p of mcList) {
+  const key = n(p.name);
+
+  const old = pokemonMap.get(key) || {};
+
+  pokemonMap.set(key, {
+    ...old,
+    ...p
+  });
+}
+
+
+/*
+ * M-C種族値を反映
+ */
+if (
+  typeof MC_BASE_STATS !== "undefined" &&
+  MC_BASE_STATS
+) {
+  for (const [name, stats] of Object.entries(MC_BASE_STATS)) {
+    const key = n(name);
+    const old = pokemonMap.get(key);
+
+    if (old) {
+      old.baseStats = {
+        ...(old.baseStats || {}),
+        ...stats
+      };
+    } else {
+      pokemonMap.set(key, {
+        name,
+        types: [],
+        baseStats: {
+          ...stats
+        },
+        abilities: [],
+        moves: []
+      });
+    }
+  }
+}
+
+
+/*
+ * M-C特性を反映
+ */
+if (
+  typeof MC_ABILITIES !== "undefined" &&
+  MC_ABILITIES
+) {
+  for (const [name, abilities] of Object.entries(MC_ABILITIES)) {
+    const key = n(name);
+    const old = pokemonMap.get(key);
+
+    if (old) {
+      old.abilities = Array.isArray(abilities)
+        ? [...abilities]
+        : abilities;
+    }
+  }
+}
+
+
+/*
+ * M-CタイプをMC_POKEMON_DATAから補完
+ */
+for (const p of mcList) {
+  const old = pokemonMap.get(n(p.name));
+
+  if (!old) continue;
+
+  if (Array.isArray(p.types) && p.types.length > 0) {
+    old.types = [...p.types];
+  }
+}
+
+
+/* =========================
+   D本体
+========================= */
+
+const D = {
+
+  pokemon: [...pokemonMap.values()],
+
+  moves: {
+    ...(LocalData.moves || {})
+  },
+
+  abilities: {
+    ...(LocalData.abilities || {})
+  },
+
+  items: {
+    ...(LocalData.items || {})
+  },
+
+  learnsets: {},
+
+  base: {}
+};
+
+
+/*
+ * M-C技
+ */
+if (
+  typeof MC_MOVES !== "undefined" &&
+  MC_MOVES
+) {
+  Object.assign(D.moves, MC_MOVES);
+}
+
+
+/*
+ * 全ポケモンの種族値をD.baseへ
+ */
+for (const p of D.pokemon) {
+
+  if (!p.name) continue;
+
+  D.base[n(p.name)] = {
+    ...(p.baseStats || {})
+  };
+}
+
+
+/*
+ * M-C種族値を最終上書き
+ */
+if (
+  typeof MC_BASE_STATS !== "undefined" &&
+  MC_BASE_STATS
+) {
+  for (const [name, stats] of Object.entries(MC_BASE_STATS)) {
+    D.base[n(name)] = {
+      ...(D.base[n(name)] || {}),
+      ...stats
+    };
+  }
+}
+
+
+/* =========================
+   ポケモン検索
+========================= */
+
+function findP(x) {
+
+  return D.pokemon.find(
+    p => n(p.name) === n(x)
+  );
+}
+
+
+/* =========================
+   種族値取得
+========================= */
+
+function base(x) {
+
+  return D.base[n(x)] || {};
+}
+
+
+/* =========================
+   技取得
+========================= */
+
+function movesForPokemon(x) {
+
+  const p = findP(x);
+
+  if (!p) {
+    return [];
+  }
+
+  /*
+   * ポケモン自身にmovesがあれば使う
+   */
+  if (
+    Array.isArray(p.moves) &&
+    p.moves.length > 0
+  ) {
+    return [
+      ...new Set(
+        p.moves
+          .map(v =>
+            typeof v === "string"
+              ? v
+              : v && v.move
+          )
+          .filter(Boolean)
+      )
+    ].slice(0, 4);
+  }
+
+  return [];
+}
+
+
+/* =========================
+   デフォルトSP
+========================= */
+
+function defaultSP(name) {
+
+  const p = findP(name);
+
+  const b = base(name);
+
+  /*
+   * ポケモンごとの簡易型
+   */
 
   const sp = {
-    hp: 0,
+    hp: 2,
     atk: 0,
     def: 0,
     spa: 0,
     spd: 0,
-    spe: 0
+    spe: 32
   };
 
-  // ポケモンが覚えている技から物理・特殊の傾向を調べる
-  const moveNames = Array.isArray(p.moves) ? p.moves : [];
-
-  let physicalPower = 0;
-  let specialPower = 0;
-
-  for (const moveName of moveNames) {
-    const move = LocalData.getMove(moveName);
-
-    if (!move) continue;
-
-    const power = Number(move.power || 0);
-
-    if (move.category === "Physical") {
-      physicalPower += power;
-    }
-
-    if (move.category === "Special") {
-      specialPower += power;
-    }
+  if (!p) {
+    return sp;
   }
 
-  const atk = Number(b.atk || 0);
-  const spa = Number(b.spa || 0);
-  const spe = Number(b.spe || 0);
-  const hp  = Number(b.hp || 0);
-  const def = Number(b.def || 0);
-  const spd = Number(b.spd || 0);
-
-  let role;
-
-  // 技構成を最優先して物理・特殊を判断
-  if (physicalPower > specialPower && physicalPower > 0) {
-    role = "physical";
-  } else if (specialPower > physicalPower && specialPower > 0) {
-    role = "special";
-  } else if (atk > spa) {
-    role = "physical";
+  /*
+   * 特殊寄り
+   */
+  if (
+    (b.spa || 0) >
+    (b.atk || 0)
+  ) {
+    sp.atk = 0;
+    sp.spa = 32;
   } else {
-    role = "special";
+    sp.atk = 32;
   }
 
-  // 素早さが高いポケモンはSも重視
-  const fast = spe >= 90;
-
-  // 耐久型の判定
-  const bulky = hp + def + spd >= 270;
-
-  let priority;
-
-  if (bulky && physicalPower === 0 && specialPower === 0) {
-    priority = ["hp", "def", "spd"];
-  } else if (role === "physical" && fast) {
-    priority = ["atk", "spe", "hp"];
-  } else if (role === "physical") {
-    priority = ["atk", "hp", "spe"];
-  } else if (role === "special" && fast) {
-    priority = ["spa", "spe", "hp"];
-  } else {
-    priority = ["spa", "hp", "spe"];
-  }
-
-  // 合計66、1能力最大32
-  let remaining = 66;
-
-  for (const stat of priority) {
-    if (remaining <= 0) break;
-
-    const amount = Math.min(32, remaining);
-
-    sp[stat] = amount;
-    remaining -= amount;
-  }
-
-  // 万一余った場合
-  const allStats = ["hp", "atk", "def", "spa", "spd", "spe"];
-
-  for (const stat of allStats) {
-    if (remaining <= 0) break;
-
-    const amount = Math.min(
-      32 - sp[stat],
-      remaining
-    );
-
-    sp[stat] += amount;
-    remaining -= amount;
+  /*
+   * 素早さが極端に低い場合
+   */
+  if ((b.spe || 0) < 60) {
+    sp.spe = 2;
+    sp.hp = 32;
   }
 
   return sp;
 }
 
-  for (const name of names) {
-    const p = findP(name);
 
-    if (p && !used.has(n(p.name))) {
-      team.push(p);
-      used.add(n(p.name));
-    }
+/* =========================
+   デフォルト持ち物
+========================= */
+
+function defaultItem(name) {
+
+  const p = findP(name);
+
+  if (!p) {
+    return "";
   }
 
-  for (const p of D.pokemon) {
-    if (team.length >= 6) break;
+  const b = base(name);
 
-    if (!used.has(n(p.name))) {
-      team.push(p);
-      used.add(n(p.name));
-    }
-  }
-function chooseItem(p) {
-  const b = p.baseStats || {};
-  const moveNames = Array.isArray(p.moves) ? p.moves : [];
-
-  let physical = 0;
-  let special = 0;
-
-  for (const moveName of moveNames) {
-    const move = LocalData.getMove(moveName);
-
-    if (!move) continue;
-
-    if (move.category === "Physical") {
-      physical += Number(move.power || 0);
-    }
-
-    if (move.category === "Special") {
-      special += Number(move.power || 0);
-    }
-  }
-
-  const atk = Number(b.atk || 0);
-  const spa = Number(b.spa || 0);
-  const spe = Number(b.spe || 0);
-  const hp = Number(b.hp || 0);
-  const def = Number(b.def || 0);
-  const spd = Number(b.spd || 0);
-
-  // 高速アタッカー
-  if (spe >= 100) {
-    return "Choice Scarf";
-  }
-
-  // 特殊アタッカー
-  if (special > physical && spa >= atk) {
+  if ((b.spa || 0) >= (b.atk || 0) + 15) {
     return "Choice Specs";
   }
 
-  // 物理アタッカー
-  if (physical > special && atk >= spa) {
-    return "Life Orb";
+  if ((b.spe || 0) >= 100) {
+    return "Choice Scarf";
   }
 
-  // 耐久型
-  if (hp + def + spd >= 270) {
-    return "Leftovers";
-  }
-
-  // 最後の候補
   return "Leftovers";
 }
-  const output = team.map(p => ({
-    name: p.name,
-    types: p.types || [],
-    sp: makeSP(p),
-    ability:
-      Array.isArray(p.abilities)
-        ? p.abilities[0] || ""
-        : Object.values(p.abilities || {})[0] || "",
-item: chooseItem(p),
-    moves: moves(p.name)
-  }));
 
-  document.getElementById("teamOut").textContent =
-    JSON.stringify(output, null, 2);
-};
-function legal(){
- try{let t=JSON.parse(document.getElementById("legalIn").value),e=[],seen=new Set();if(!Array.isArray(t)||t.length!=6)e.push("6体必要");
- t.forEach(p=>{if(seen.has(n(p.name)))e.push("同種重複: "+p.name);seen.add(n(p.name));let s=p.sp||{},sum=Object.values(s).reduce((a,b)=>a+(+b||0),0);if(sum>66)e.push(p.name+": SP合計66超過");if(Object.values(s).some(v=>+v>32))e.push(p.name+": 1能力32超過");if(!findP(p.name))e.push("未知ポケモン: "+p.name)});document.getElementById("legalOut").textContent=JSON.stringify({valid:e.length==0,errors:e},null,2)
- }catch(e){document.getElementById("legalOut").textContent=e.message}
+
+/* =========================
+   デフォルト特性
+========================= */
+
+function defaultAbility(name) {
+
+  const p = findP(name);
+
+  if (!p) {
+    return "";
+  }
+
+  if (
+    Array.isArray(p.abilities) &&
+    p.abilities.length > 0
+  ) {
+    return p.abilities[0];
+  }
+
+  if (
+    p.abilities &&
+    typeof p.abilities === "object"
+  ) {
+    return Object.keys(p.abilities)[0] || "";
+  }
+
+  return "";
 }
-function score(p){let b=base(p.name),s=["hp","atk","def","spa","spd","spe"].reduce((a,k)=>a+(+b[k]||0),0);return s}
-```javascript
-function select3() {
+
+
+/* =========================
+   ① パーティー構築
+========================= */
+
+window.makeTeam = function() {
+
   try {
-    const myTeam = JSON.parse(
-      document.getElementById("myIn").value
-    );
 
-    const oppTeam = JSON.parse(
-      document.getElementById("opIn").value
-    );
+    const seedEl =
+      document.getElementById("seed");
 
-    if (!Array.isArray(myTeam) || myTeam.length !== 6) {
-      throw new Error("自分の6体を入力してください");
+    const outEl =
+      document.getElementById("teamOut");
+
+    const names =
+      seedEl.value
+        .split(",")
+        .map(x => x.trim())
+        .filter(Boolean);
+
+
+    const team = [];
+
+    const used = new Set();
+
+
+    /*
+     * 入力されたポケモンを優先
+     */
+
+    for (const name of names) {
+
+      const p = findP(name);
+
+      if (
+        p &&
+        !used.has(n(p.name))
+      ) {
+
+        team.push(p);
+
+        used.add(n(p.name));
+      }
     }
 
-    if (!Array.isArray(oppTeam) || oppTeam.length !== 6) {
-      throw new Error("相手の6体を入力してください");
+
+    /*
+     * 足りない分をデータから補充
+     */
+
+    for (const p of D.pokemon) {
+
+      if (team.length >= 6) {
+        break;
+      }
+
+      if (
+        !used.has(n(p.name))
+      ) {
+
+        team.push(p);
+
+        used.add(n(p.name));
+      }
     }
 
-    // --------------------------------
-    // ポケモン名を正規化
-    // --------------------------------
-    function key(name) {
-      return String(name || "")
-        .toLowerCase()
-        .replace(/[\s_-]/g, "");
-    }
 
-    // --------------------------------
-    // ポケモン情報を取得
-    // --------------------------------
-    function getPokemonData(p) {
-      const local = LocalData.pokemon.find(
-        x => key(x.name) === key(p.name)
+    /*
+     * 最大6体
+     */
+
+    const result =
+      team.slice(0, 6).map(p => {
+
+        return {
+
+          name: p.name,
+
+          types:
+            Array.isArray(p.types)
+              ? [...p.types]
+              : [],
+
+          sp:
+            defaultSP(p.name),
+
+          ability:
+            defaultAbility(p.name),
+
+          item:
+            defaultItem(p.name),
+
+          moves:
+            movesForPokemon(p.name)
+
+        };
+
+      });
+
+
+    outEl.textContent =
+      JSON.stringify(
+        result,
+        null,
+        2
       );
 
-      return local || p;
+
+  } catch (e) {
+
+    document.getElementById(
+      "teamOut"
+    ).textContent =
+      "エラー: " + e.message;
+
+    console.error(e);
+  }
+};
+
+
+/* =========================
+   ② 合法性チェック
+========================= */
+
+function legal() {
+
+  try {
+
+    const input =
+      document.getElementById(
+        "legalIn"
+      ).value;
+
+    const t =
+      JSON.parse(input);
+
+    const errors = [];
+
+    const seen =
+      new Set();
+
+
+    if (
+      !Array.isArray(t) ||
+      t.length !== 6
+    ) {
+      errors.push(
+        "6体必要です"
+      );
     }
 
-    // --------------------------------
-    // タイプを補完
-    // --------------------------------
-    function getTypes(p) {
-      const current =
-        Array.isArray(p.types)
-          ? p.types.filter(Boolean)
-          : [];
 
-      if (current.length > 0) {
-        return current;
-      }
+    if (Array.isArray(t)) {
 
-      const local = getPokemonData(p);
+      for (const p of t) {
 
-      if (
-        local &&
-        Array.isArray(local.types)
-      ) {
-        return local.types;
-      }
-
-      return [];
-    }
-
-    // --------------------------------
-    // 種族値を取得
-    // --------------------------------
-    function getStats(p) {
-      const local = getPokemonData(p);
-
-      if (
-        local &&
-        local.baseStats
-      ) {
-        return local.baseStats;
-      }
-
-      if (p.baseStats) {
-        return p.baseStats;
-      }
-
-      return {};
-    }
-
-    // --------------------------------
-    // 技を取得
-    // --------------------------------
-    function getMoves(p) {
-      if (!Array.isArray(p.moves)) {
-        return [];
-      }
-
-      return p.moves
-        .map(m => {
-          if (typeof m === "string") {
-            return m;
-          }
-
-          return m && (
-            m.name ||
-            m.move
+        if (!p || !p.name) {
+          errors.push(
+            "名前がないポケモンがあります"
           );
-        })
-        .filter(Boolean);
-    }
-
-    // --------------------------------
-    // 技データ
-    // --------------------------------
-    function getMoveData(name) {
-      return LocalData.getMove(name);
-    }
-
-    // --------------------------------
-    // タイプ相性
-    // --------------------------------
-    function typeEffect(
-      moveType,
-      defenderTypes
-    ) {
-      let result = 1;
-
-      const chart =
-        LocalData.typeChart[
-          moveType
-        ];
-
-      if (!chart) {
-        return result;
-      }
-
-      for (
-        const type of defenderTypes
-      ) {
-        if (
-          chart[type] !== undefined
-        ) {
-          result *= Number(
-            chart[type]
-          );
-        }
-      }
-
-      return result;
-    }
-
-    // --------------------------------
-    // 攻撃能力
-    // --------------------------------
-    function offensiveStat(
-      attacker,
-      move
-    ) {
-      const stats =
-        getStats(attacker);
-
-      if (
-        move.category ===
-        "Physical"
-      ) {
-        return Number(
-          stats.atk || 0
-        );
-      }
-
-      if (
-        move.category ===
-        "Special"
-      ) {
-        return Number(
-          stats.spa || 0
-        );
-      }
-
-      return 0;
-    }
-
-    // --------------------------------
-    // 防御能力
-    // --------------------------------
-    function defensiveStat(
-      defender,
-      move
-    ) {
-      const stats =
-        getStats(defender);
-
-      if (
-        move.category ===
-        "Physical"
-      ) {
-        return Number(
-          stats.def || 1
-        );
-      }
-
-      if (
-        move.category ===
-        "Special"
-      ) {
-        return Number(
-          stats.spd || 1
-        );
-      }
-
-      return 1;
-    }
-
-    // --------------------------------
-    // 1つの技による攻撃評価
-    // --------------------------------
-    function evaluateMove(
-      attacker,
-      defender,
-      moveName
-    ) {
-      const move =
-        getMoveData(moveName);
-
-      if (!move) {
-        return null;
-      }
-
-      if (
-        move.category ===
-        "Status"
-      ) {
-        return null;
-      }
-
-      const power =
-        Number(move.power || 0);
-
-      if (power <= 0) {
-        return null;
-      }
-
-      const attack =
-        offensiveStat(
-          attacker,
-          move
-        );
-
-      const defense =
-        defensiveStat(
-          defender,
-          move
-        );
-
-      const defenderTypes =
-        getTypes(defender);
-
-      const attackerTypes =
-        getTypes(attacker);
-
-      const effectiveness =
-        typeEffect(
-          move.type,
-          defenderTypes
-        );
-
-      // STAB
-      const stab =
-        attackerTypes.includes(
-          move.type
-        )
-          ? 1.5
-          : 1;
-
-      // 命中率
-      const accuracy =
-        Number(
-          move.accuracy || 100
-        ) / 100;
-
-      // 簡易ダメージモデル
-      const baseDamage =
-        (
-          (
-            (
-              2 *
-              100 /
-              5
-            ) + 2
-          ) *
-          power *
-          attack /
-          Math.max(
-            defense,
-            1
-          )
-        ) / 50
-        + 2;
-
-      const expectedDamage =
-        baseDamage *
-        stab *
-        effectiveness *
-        accuracy;
-
-      return {
-        move: moveName,
-        power,
-        category:
-          move.category,
-        attack,
-        defense,
-        effectiveness,
-        stab,
-        accuracy,
-        damage:
-          Number(
-            expectedDamage.toFixed(2)
-          )
-      };
-    }
-
-    // --------------------------------
-    // 最も有効な攻撃技
-    // --------------------------------
-    function bestMove(
-      attacker,
-      defender
-    ) {
-      let best = null;
-
-      for (
-        const moveName of
-        getMoves(attacker)
-      ) {
-        const result =
-          evaluateMove(
-            attacker,
-            defender,
-            moveName
-          );
-
-        if (!result) {
           continue;
         }
 
-        if (
-          !best ||
-          result.damage >
-            best.damage
-        ) {
-          best = result;
+
+        const key =
+          n(p.name);
+
+
+        if (seen.has(key)) {
+
+          errors.push(
+            "同種重複: " + p.name
+          );
+
         }
-      }
 
-      return best;
+        seen.add(key);
+
+
+        const data =
+          findP(p.name);
+
+
+        if (!data) {
+
+          errors.push(
+            "未知ポケモン: " +
+            p.name
+          );
+
+          continue;
+        }
+
+
+        const sp =
+          p.sp || {};
+
+
+        const values =
+          [
+            "hp",
+            "atk",
+            "def",
+            "spa",
+            "spd",
+            "spe"
+          ].map(
+            k => +sp[k] || 0
+          );
+
+
+        const sum =
+          values.reduce(
+            (a, b) => a + b,
+            0
+          );
+
+
+        if (sum > 66) {
+
+          errors.push(
+            p.name +
+            ": SP合計66超過"
+          );
+
+        }
+
+
+        if (
+          values.some(
+            v => v > 32
+          )
+        ) {
+
+          errors.push(
+            p.name +
+            ": 1能力32超過"
+          );
+
+        }
+
+
+        if (
+          Array.isArray(p.moves) &&
+          p.moves.length > 4
+        ) {
+
+          errors.push(
+            p.name +
+            ": 技4つ超過"
+          );
+
+        }
+
+      }
     }
 
-    // --------------------------------
-    // 素早さ
-    // --------------------------------
-    function speedValue(p) {
-      const stats =
-        getStats(p);
 
-      let speed =
-        Number(stats.spe || 0);
+    document.getElementById(
+      "legalOut"
+    ).textContent =
+      JSON.stringify(
+        {
+          valid:
+            errors.length === 0,
+          errors
+        },
+        null,
+        2
+      );
 
-      const status =
-        p.status;
 
-      if (
-        status ===
-        "paralysis"
-      ) {
-        speed *= 0.5;
-      }
+  } catch (e) {
 
-      if (
-        p.item ===
-        "Choice Scarf"
-      ) {
-        speed *= 1.5;
-      }
+    document.getElementById(
+      "legalOut"
+    ).textContent =
+      "JSONエラー: " +
+      e.message;
 
-      return speed;
-    }
+  }
+}
 
-    // --------------------------------
-    // 1対1対面評価
-    // --------------------------------
-    function matchup(
-      mine,
-      opponent
+
+/* =========================
+   タイプ相性
+========================= */
+
+function typeEffectiveness(
+  moveType,
+  defenderTypes
+) {
+
+  if (
+    !Array.isArray(defenderTypes) ||
+    defenderTypes.length === 0
+  ) {
+    return 1;
+  }
+
+
+  let multiplier = 1;
+
+
+  for (
+    const type of defenderTypes
+  ) {
+
+    const row =
+      D.typeChart
+        ? D.typeChart[moveType]
+        : LocalData.typeChart[moveType];
+
+
+    if (
+      row &&
+      row[type] !== undefined
     ) {
-      const myBest =
-        bestMove(
-          mine,
-          opponent
-        );
 
-      const oppBest =
-        bestMove(
-          opponent,
-          mine
-        );
+      multiplier *=
+        row[type];
 
-      let score = 0;
-
-      // 自分からのダメージ
-      if (myBest) {
-        score +=
-          myBest.damage;
-      }
-
-      // 相手からのダメージ
-      if (oppBest) {
-        score -=
-          oppBest.damage * 0.65;
-      }
-
-      // タイプ相性
-      if (myBest) {
-        if (
-          myBest.effectiveness >= 4
-        ) {
-          score += 30;
-        } else if (
-          myBest.effectiveness >= 2
-        ) {
-          score += 15;
-        } else if (
-          myBest.effectiveness === 0
-        ) {
-          score -= 25;
-        } else if (
-          myBest.effectiveness < 1
-        ) {
-          score -= 10;
-        }
-      }
-
-      // 相手から受ける相性
-      if (oppBest) {
-        if (
-          oppBest.effectiveness >= 4
-        ) {
-          score -= 30;
-        } else if (
-          oppBest.effectiveness >= 2
-        ) {
-          score -= 15;
-        } else if (
-          oppBest.effectiveness === 0
-        ) {
-          score += 25;
-        } else if (
-          oppBest.effectiveness < 1
-        ) {
-          score += 10;
-        }
-      }
-
-      // 素早さ
-      const mySpeed =
-        speedValue(mine);
-
-      const oppSpeed =
-        speedValue(opponent);
-
-      if (
-        mySpeed >
-        oppSpeed
-      ) {
-        score += 8;
-      } else if (
-        mySpeed <
-        oppSpeed
-      ) {
-        score -= 8;
-      }
-
-      return {
-        score:
-          Number(
-            score.toFixed(2)
-          ),
-
-        myBestMove:
-          myBest
-            ? myBest.move
-            : null,
-
-        myDamage:
-          myBest
-            ? myBest.damage
-            : 0,
-
-        myEffectiveness:
-          myBest
-            ? myBest.effectiveness
-            : 1,
-
-        opponentBestMove:
-          oppBest
-            ? oppBest.move
-            : null,
-
-        opponentDamage:
-          oppBest
-            ? oppBest.damage
-            : 0,
-
-        opponentEffectiveness:
-          oppBest
-            ? oppBest.effectiveness
-            : 1
-      };
     }
 
-    // --------------------------------
-    // 3体選出の評価
-    // --------------------------------
-    function evaluateSelection(
-      team
+  }
+
+
+  return multiplier;
+}
+
+
+/*
+ * LocalDataのタイプ表をDにも持たせる
+ */
+
+D.typeChart =
+  LocalData.typeChart || {};
+
+
+/* =========================
+   技ダメージ評価
+========================= */
+
+function moveScore(
+  attacker,
+  defender,
+  moveName
+) {
+
+  const move =
+    D.moves[moveName];
+
+
+  if (!move) {
+    return {
+      score: 0,
+      damage: 0,
+      move: moveName
+    };
+  }
+
+
+  const b =
+    base(attacker.name);
+
+
+  const db =
+    base(defender.name);
+
+
+  const attackStat =
+    move.category === "Special"
+      ? (b.spa || 1)
+      : (b.atk || 1);
+
+
+  const defenseStat =
+    move.category === "Special"
+      ? (db.spd || 1)
+      : (db.def || 1);
+
+
+  const power =
+    move.power || 0;
+
+
+  if (power <= 0) {
+
+    return {
+      score: 10,
+      damage: 0,
+      move: moveName
+    };
+
+  }
+
+
+  const stab =
+    Array.isArray(attacker.types) &&
+    attacker.types.includes(move.type)
+      ? 1.5
+      : 1;
+
+
+  const effectiveness =
+    typeEffectiveness(
+      move.type,
+      defender.types
+    );
+
+
+  const raw =
+    Math.floor(
+      (
+        (
+          22 *
+          power *
+          attackStat
+        ) /
+        Math.max(
+          1,
+          defenseStat
+        )
+      ) /
+        50
+    ) + 2;
+
+
+  const damage =
+    Math.max(
+      0,
+      Math.floor(
+        raw *
+        stab *
+        effectiveness
+      )
+    );
+
+
+  return {
+
+    score:
+      damage,
+
+    damage,
+
+    move:
+      moveName,
+
+    type:
+      move.type,
+
+    effectiveness,
+
+    stab
+
+  };
+}
+
+
+/* =========================
+   ③ 6→3選出
+========================= */
+
+function select3() {
+
+  try {
+
+    const myTeam =
+      JSON.parse(
+        document.getElementById(
+          "myIn"
+        ).value
+      );
+
+
+    const opponentTeam =
+      JSON.parse(
+        document.getElementById(
+          "opIn"
+        ).value
+      );
+
+
+    if (
+      !Array.isArray(myTeam) ||
+      !Array.isArray(opponentTeam)
     ) {
-      let total = 0;
 
-      const details = [];
+      throw new Error(
+        "自分と相手の6体をJSON配列で入力してください"
+      );
 
-      // 各ポケモンについて
-      // 相手6体との対面を平均評価
-      for (
-        const mine of team
-      ) {
-        let matchupTotal = 0;
-        let wins = 0;
-        let losses = 0;
-
-        const opponents = [];
-
-        for (
-          const opponent of
-          oppTeam
-        ) {
-          const result =
-            matchup(
-              mine,
-              opponent
-            );
-
-          matchupTotal +=
-            result.score;
-
-          if (
-            result.score > 20
-          ) {
-            wins++;
-          }
-
-          if (
-            result.score < -20
-          ) {
-            losses++;
-          }
-
-          opponents.push({
-            opponent:
-              opponent.name,
-
-            score:
-              result.score,
-
-            myBestMove:
-              result.myBestMove,
-
-            myDamage:
-              result.myDamage,
-
-            opponentBestMove:
-              result.opponentBestMove,
-
-            opponentDamage:
-              result.opponentDamage,
-
-            myEffectiveness:
-              result.myEffectiveness,
-
-            opponentEffectiveness:
-              result.opponentEffectiveness
-          });
-        }
-
-        const average =
-          matchupTotal /
-          oppTeam.length;
-
-        total += average;
-
-        details.push({
-          pokemon:
-            mine.name,
-
-          types:
-            getTypes(mine),
-
-          averageScore:
-            Number(
-              average.toFixed(2)
-            ),
-
-          favorableMatchups:
-            wins,
-
-          unfavorableMatchups:
-            losses,
-
-          opponents
-        });
-      }
-
-      // --------------------------------
-      // 3体の役割バランス
-      // --------------------------------
-      const roles = [];
-
-      for (
-        const p of team
-      ) {
-        const stats =
-          getStats(p);
-
-        const atk =
-          Number(
-            stats.atk || 0
-          );
-
-        const spa =
-          Number(
-            stats.spa || 0
-          );
-
-        const spe =
-          Number(
-            stats.spe || 0
-          );
-
-        if (
-          spe >= 100
-        ) {
-          roles.push("fast");
-        } else if (
-          atk >
-          spa + 20
-        ) {
-          roles.push(
-            "physical"
-          );
-        } else if (
-          spa >
-          atk + 20
-        ) {
-          roles.push(
-            "special"
-          );
-        } else {
-          roles.push(
-            "balanced"
-          );
-        }
-      }
-
-      const uniqueRoles =
-        new Set(roles);
-
-      // 役割が複数あるほど少し加点
-      total +=
-        uniqueRoles.size * 5;
-
-      // --------------------------------
-      // タイプ重複ペナルティ
-      // --------------------------------
-      const typeCounts = {};
-
-      for (
-        const p of team
-      ) {
-        for (
-          const type of
-          getTypes(p)
-        ) {
-          typeCounts[type] =
-            (typeCounts[type] || 0)
-            + 1;
-        }
-      }
-
-      for (
-        const count of
-        Object.values(typeCounts)
-      ) {
-        if (count >= 3) {
-          total -=
-            (count - 2) * 4;
-        }
-      }
-
-      return {
-        score:
-          Number(
-            total.toFixed(2)
-          ),
-
-        details,
-
-        roles,
-
-        typeCounts
-      };
     }
 
-    // --------------------------------
-    // 6体から3体を全探索
-    // --------------------------------
+
     const candidates = [];
+
+
+    /*
+     * 6体から3体を全探索
+     */
 
     for (
       let i = 0;
       i < myTeam.length;
       i++
     ) {
+
       for (
         let j = i + 1;
         j < myTeam.length;
         j++
       ) {
+
         for (
           let k = j + 1;
           k < myTeam.length;
           k++
         ) {
-          const team = [
+
+          const selection = [
             myTeam[i],
             myTeam[j],
             myTeam[k]
           ];
 
-          const result =
-            evaluateSelection(
-              team
-            );
+
+          let total = 0;
+
+          const details = [];
+
+
+          for (
+            const mine of selection
+          ) {
+
+            let best = null;
+
+
+            for (
+              const opp of opponentTeam
+            ) {
+
+              const myMoves =
+                Array.isArray(mine.moves)
+                  ? mine.moves
+                  : movesForPokemon(
+                      mine.name
+                    );
+
+
+              for (
+                const moveName of myMoves
+              ) {
+
+                const result =
+                  moveScore(
+                    mine,
+                    opp,
+                    moveName
+                  );
+
+
+                if (
+                  !best ||
+                  result.score >
+                    best.score
+                ) {
+
+                  best = {
+                    opponent:
+                      opp.name,
+
+                    ...result
+                  };
+
+                }
+
+              }
+
+            }
+
+
+            if (best) {
+
+              total +=
+                best.score;
+
+
+              details.push({
+
+                pokemon:
+                  mine.name,
+
+                bestMatchup:
+                  best.opponent,
+
+                score:
+                  best.score,
+
+                bestMove:
+                  best.move,
+
+                effectiveness:
+                  best.effectiveness
+
+              });
+
+            }
+
+          }
+
 
           candidates.push({
+
             selection:
-              team.map(
-                p => p.name
+              selection.map(
+                x => x.name
               ),
 
             evaluation:
-              result.score,
-
-            roles:
-              result.roles,
-
-            typeCounts:
-              result.typeCounts,
+              Math.round(
+                total * 10
+              ) / 10,
 
             matchupDetails:
-              result.details
+              details
+
           });
+
         }
+
       }
+
     }
 
-    // --------------------------------
-    // 評価順
-    // --------------------------------
+
     candidates.sort(
       (a, b) =>
         b.evaluation -
         a.evaluation
     );
 
-    // --------------------------------
-    // 出力
-    // --------------------------------
-    const output = {
-      input: {
-        myTeam:
-          myTeam.map(
-            p => p.name
-          ),
-
-        opponentTeam:
-          oppTeam.map(
-            p => p.name
-          )
-      },
-
-      candidates:
-        candidates.slice(
-          0,
-          10
-        ),
-
-      note:
-        "強化版6→3選出AI：6体全員との対面平均、タイプ相性、STAB、技威力、物理/特殊、防御、素早さ、相手からの打点、役割バランス、タイプ重複を評価"
-    };
 
     document.getElementById(
       "selectOut"
     ).textContent =
       JSON.stringify(
-        output,
+        {
+          input: {
+            myTeam:
+              myTeam.map(
+                x => x.name
+              ),
+
+            opponentTeam:
+              opponentTeam.map(
+                x => x.name
+              )
+          },
+
+          candidates:
+            candidates.slice(
+              0,
+              10
+            ),
+
+          note:
+            "6→3対面評価：タイプ相性・STAB・技威力・攻撃能力・相手タイプを考慮"
+
+        },
         null,
         2
       );
 
+
   } catch (e) {
+
     document.getElementById(
       "selectOut"
     ).textContent =
       "エラー: " +
       e.message;
+
+    console.error(e);
   }
 }
-```
 
-function battle(){
- try{let s=JSON.parse(battleIn.value),a=s.me.active,d=s.opp.active,out=(a.moves||[]).map(m=>{let b=base(a.name),c=base(d.name),p=60,A=(b.atk||1)+20,D=(c.def||1)+20,raw=Math.floor(Math.floor(22*p*A/D)/50)+2;return{action:["move",m],estimatedDamage:[Math.floor(raw*.86),raw]}});out.sort((x,y)=>y.estimatedDamage[1]-x.estimatedDamage[1]);battleOut.textContent=JSON.stringify({depth:+depth.value,candidates:out,note:"ブラウザ版の軽量探索。特殊効果・全特性の完全再現は今後拡張可能"},null,2)}catch(e){battleOut.textContent=e.message}
+
+/* =========================
+   ④ 対戦AI
+========================= */
+
+function battle() {
+
+  try {
+
+    const state =
+      JSON.parse(
+        document.getElementById(
+          "battleIn"
+        ).value
+      );
+
+
+    const me =
+      state.me.active;
+
+
+    const opp =
+      state.opp.active;
+
+
+    const candidates = [];
+
+
+    const myMoves =
+      Array.isArray(me.moves)
+        ? me.moves
+        : movesForPokemon(
+            me.name
+          );
+
+
+    for (
+      const moveName of myMoves
+    ) {
+
+      const result =
+        moveScore(
+          me,
+          opp,
+          moveName
+        );
+
+
+      candidates.push({
+
+        action:
+          ["move", moveName],
+
+        move:
+          moveName,
+
+        estimatedDamage:
+          result.damage,
+
+        effectiveness:
+          result.effectiveness,
+
+        score:
+          result.score
+
+      });
+
+    }
+
+
+    candidates.sort(
+      (a, b) =>
+        b.score -
+        a.score
+    );
+
+
+    const depth =
+      +document.getElementById(
+        "depth"
+      ).value || 4;
+
+
+    document.getElementById(
+      "battleOut"
+    ).textContent =
+      JSON.stringify(
+        {
+
+          depth,
+
+          active:
+            me.name,
+
+          opponent:
+            opp.name,
+
+          candidates,
+
+          recommended:
+            candidates[0] || null,
+
+          note:
+            "ブラウザ版の軽量探索。今後、状態異常・交代・特性・持ち物・複数ターン探索を拡張可能"
+
+        },
+        null,
+        2
+      );
+
+
+  } catch (e) {
+
+    document.getElementById(
+      "battleOut"
+    ).textContent =
+      "エラー: " +
+      e.message;
+
+    console.error(e);
+  }
 }
-function review(){try{let r=JSON.parse(replayIn.value);reviewOut.textContent=JSON.stringify({turns:r.turns||[],note:"入力ログを保持してレビューできます。AI比較は各ターンの状態JSONが必要です"},null,2)}catch(e){reviewOut.textContent=e.message}}
-console.log("Local Pokémon data loaded:", D.pokemon.length);
-console.log("Local move data loaded:", Object.keys(D.moves).length);
-console.log("Local ability data loaded:", Object.keys(D.abilities).length);
-console.log("Local item data loaded:", Object.keys(D.items).length);
+
+
+/* =========================
+   ⑤ 対戦レビュー
+========================= */
+
+function review() {
+
+  try {
+
+    const replay =
+      JSON.parse(
+        document.getElementById(
+          "replayIn"
+        ).value
+      );
+
+
+    const turns =
+      Array.isArray(
+        replay.turns
+      )
+        ? replay.turns
+        : [];
+
+
+    document.getElementById(
+      "reviewOut"
+    ).textContent =
+      JSON.stringify(
+        {
+
+          turnCount:
+            turns.length,
+
+          turns,
+
+          note:
+            "入力された対戦ログを解析する基礎版。各ターンの状態JSONがあれば、AI候補との比較を追加できます。"
+
+        },
+        null,
+        2
+      );
+
+
+  } catch (e) {
+
+    document.getElementById(
+      "reviewOut"
+    ).textContent =
+      "JSONエラー: " +
+      e.message;
+
+  }
+}
+
+
+/* =========================
+   起動確認
+========================= */
+
+console.log(
+  "=== Pokémon Champions Singles AI ==="
+);
+
+console.log(
+  "D.pokemon:",
+  D.pokemon.length
+);
+
+console.log(
+  "D.moves:",
+  Object.keys(D.moves).length
+);
+
+console.log(
+  "D.abilities:",
+  Object.keys(D.abilities).length
+);
+
+console.log(
+  "D.items:",
+  Object.keys(D.items).length
+);
+
+console.log(
+  "Alolan Persian:",
+  findP("Alolan Persian")
+);
+
+console.log(
+  "Alolan Persian types:",
+  findP("Alolan Persian")?.types
+);
+
+console.log(
+  "Alolan Persian base:",
+  base("Alolan Persian")
+);
+
 </script>
 </body>
 </html>
