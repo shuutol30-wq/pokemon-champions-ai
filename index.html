@@ -1116,10 +1116,8 @@ function select3() {
    ④ 対戦AI
 ========================= */
 
-function battle(){
+function battle() {
   const out = document.getElementById("battleOut");
-
-  out.textContent = "対戦AIを実行しています...";
 
   try {
     const input = JSON.parse(
@@ -1141,31 +1139,513 @@ function battle(){
     const oppPokemon = findP(opp.name);
 
     if (!myPokemon) {
-      throw new Error(
-        "自分のポケモンが見つかりません: " + me.name
-      );
+      throw new Error("自分のポケモンが見つかりません: " + me.name);
     }
 
     if (!oppPokemon) {
-      throw new Error(
-        "相手のポケモンが見つかりません: " + opp.name
+      throw new Error("相手のポケモンが見つかりません: " + opp.name);
+    }
+
+    const myBase = base(me.name);
+    const oppBase = base(opp.name);
+
+    const myTypes = myPokemon.types || [];
+    const oppTypes = oppPokemon.types || [];
+
+    const myMoves = Array.isArray(me.moves)
+      ? me.moves
+      : [];
+
+    const oppMoves = Array.isArray(opp.moves)
+      ? opp.moves
+      : [];
+
+    const TYPE_CHART = {
+      Normal: {
+        Rock: 0.5,
+        Ghost: 0,
+        Steel: 0.5
+      },
+      Fire: {
+        Fire: 0.5,
+        Water: 0.5,
+        Grass: 2,
+        Ice: 2,
+        Bug: 2,
+        Rock: 0.5,
+        Dragon: 0.5,
+        Steel: 2
+      },
+      Water: {
+        Fire: 2,
+        Water: 0.5,
+        Grass: 0.5,
+        Ground: 2,
+        Rock: 2,
+        Dragon: 0.5
+      },
+      Electric: {
+        Water: 2,
+        Electric: 0.5,
+        Grass: 0.5,
+        Ground: 0,
+        Flying: 2,
+        Dragon: 0.5
+      },
+      Grass: {
+        Fire: 0.5,
+        Water: 2,
+        Grass: 0.5,
+        Poison: 0.5,
+        Ground: 2,
+        Flying: 0.5,
+        Bug: 0.5,
+        Rock: 2,
+        Dragon: 0.5,
+        Steel: 0.5
+      },
+      Ice: {
+        Fire: 0.5,
+        Water: 0.5,
+        Grass: 2,
+        Ice: 0.5,
+        Ground: 2,
+        Flying: 2,
+        Dragon: 2,
+        Steel: 0.5
+      },
+      Fighting: {
+        Normal: 2,
+        Ice: 2,
+        Rock: 2,
+        Dark: 2,
+        Steel: 2,
+        Poison: 0.5,
+        Flying: 0.5,
+        Psychic: 0.5,
+        Bug: 0.5,
+        Fairy: 0.5,
+        Ghost: 0
+      },
+      Poison: {
+        Grass: 2,
+        Poison: 0.5,
+        Ground: 0.5,
+        Rock: 0.5,
+        Ghost: 0.5,
+        Steel: 0,
+        Fairy: 2
+      },
+      Ground: {
+        Fire: 2,
+        Electric: 2,
+        Grass: 0.5,
+        Poison: 2,
+        Flying: 0,
+        Bug: 0.5,
+        Rock: 2,
+        Steel: 2
+      },
+      Flying: {
+        Electric: 0.5,
+        Grass: 2,
+        Fighting: 2,
+        Bug: 2,
+        Rock: 0.5,
+        Steel: 0.5
+      },
+      Psychic: {
+        Fighting: 2,
+        Poison: 2,
+        Psychic: 0.5,
+        Steel: 0.5,
+        Dark: 0
+      },
+      Bug: {
+        Fire: 0.5,
+        Grass: 2,
+        Fighting: 0.5,
+        Poison: 0.5,
+        Flying: 0.5,
+        Psychic: 2,
+        Ghost: 0.5,
+        Steel: 0.5,
+        Dark: 2,
+        Fairy: 0.5
+      },
+      Rock: {
+        Fire: 2,
+        Ice: 2,
+        Fighting: 0.5,
+        Ground: 0.5,
+        Flying: 2,
+        Bug: 2,
+        Steel: 0.5
+      },
+      Ghost: {
+        Normal: 0,
+        Psychic: 2,
+        Ghost: 2,
+        Dark: 0.5
+      },
+      Dragon: {
+        Dragon: 2,
+        Steel: 0.5,
+        Fairy: 0
+      },
+      Dark: {
+        Fighting: 0.5,
+        Psychic: 2,
+        Ghost: 2,
+        Dark: 0.5,
+        Fairy: 0.5
+      },
+      Steel: {
+        Fire: 0.5,
+        Water: 0.5,
+        Electric: 0.5,
+        Ice: 2,
+        Rock: 2,
+        Fairy: 2,
+        Steel: 0.5
+      },
+      Fairy: {
+        Fire: 0.5,
+        Fighting: 2,
+        Poison: 0.5,
+        Dragon: 2,
+        Dark: 2,
+        Steel: 0.5
+      }
+    };
+
+    const MOVE_DATA = D.moves || {};
+
+    function getMoveData(name) {
+      const key = Object.keys(MOVE_DATA).find(
+        x => n(x) === n(name)
+      );
+
+      if (!key) return {};
+
+      return MOVE_DATA[key] || {};
+    }
+
+    function getMoveType(move) {
+      const data = getMoveData(move);
+
+      return (
+        data.type ||
+        data.Type ||
+        "Normal"
       );
     }
 
-    out.textContent = JSON.stringify({
-      success: true,
-      message: "対戦AIの入力を正常に読み込みました。",
-      me: me.name,
-      opponent: opp.name,
-      myTypes: myPokemon.types,
-      opponentTypes: oppPokemon.types,
-      myMoves: me.moves,
-      opponentMoves: opp.moves
-    }, null, 2);
+    function getMovePower(move) {
+      const data = getMoveData(move);
+
+      const p =
+        data.power ??
+        data.Power ??
+        data.basePower ??
+        data.base_power ??
+        0;
+
+      return Number(p) || 0;
+    }
+
+    function getMoveCategory(move) {
+      const data = getMoveData(move);
+
+      return (
+        data.category ||
+        data.Category ||
+        "Status"
+      );
+    }
+
+    function getMoveAccuracy(move) {
+      const data = getMoveData(move);
+
+      const a =
+        data.accuracy ??
+        data.Accuracy ??
+        100;
+
+      return Number(a) || 100;
+    }
+
+    function typeEffectiveness(moveType, defenderTypes) {
+      let result = 1;
+
+      for (const type of defenderTypes) {
+        result *=
+          TYPE_CHART[moveType]?.[type] ?? 1;
+      }
+
+      return result;
+    }
+
+    function getAttackStat(pokemon, category) {
+      const b = base(pokemon.name);
+      const s = pokemon.sp || {};
+
+      if (
+        category === "Special" ||
+        category === "special"
+      ) {
+        return (
+          Number(b.spa || 0) +
+          Number(s.spa || 0)
+        );
+      }
+
+      return (
+        Number(b.atk || 0) +
+        Number(s.atk || 0)
+      );
+    }
+
+    function getDefenseStat(pokemon, category) {
+      const b = base(pokemon.name);
+      const s = pokemon.sp || {};
+
+      if (
+        category === "Special" ||
+        category === "special"
+      ) {
+        return (
+          Number(b.spd || 0) +
+          Number(s.spd || 0)
+        );
+      }
+
+      return (
+        Number(b.def || 0) +
+        Number(s.def || 0)
+      );
+    }
+
+    function getSpeed(pokemon) {
+      const b = base(pokemon.name);
+      const s = pokemon.sp || {};
+
+      return (
+        Number(b.spe || 0) +
+        Number(s.spe || 0)
+      );
+    }
+
+    function evaluateMove(
+      attacker,
+      defender,
+      moveName,
+      attackerTypes
+    ) {
+      const type = getMoveType(moveName);
+      const power = getMovePower(moveName);
+      const category = getMoveCategory(moveName);
+      const accuracy = getMoveAccuracy(moveName);
+
+      const effectiveness =
+        typeEffectiveness(
+          type,
+          defender.types || []
+        );
+
+      const stab =
+        attackerTypes.includes(type)
+          ? 1.5
+          : 1;
+
+      const attack =
+        getAttackStat(
+          attacker,
+          category
+        );
+
+      const defense =
+        getDefenseStat(
+          defender,
+          category
+        );
+
+      const speedA =
+        getSpeed(attacker);
+
+      const speedD =
+        getSpeed(defender);
+
+      const reasons = [];
+
+      if (effectiveness === 0) {
+        reasons.push("無効");
+      } else if (effectiveness > 1) {
+        reasons.push("効果抜群");
+      } else if (effectiveness < 1) {
+        reasons.push("いまひとつ");
+      }
+
+      if (stab > 1) {
+        reasons.push("STAB");
+      }
+
+      let estimatedDamage = 0;
+
+      if (
+        power > 0 &&
+        effectiveness > 0
+      ) {
+        estimatedDamage =
+          Math.floor(
+            (
+              (
+                2 *
+                Math.max(1, attacker.level || 50) /
+                5 +
+                2
+              ) *
+              power *
+              Math.max(1, attack) /
+              Math.max(1, defense)
+            ) /
+              50 +
+              2
+          );
+
+        estimatedDamage =
+          Math.floor(
+            estimatedDamage *
+            stab *
+            effectiveness *
+            (accuracy / 100)
+          );
+      }
+
+      let score = estimatedDamage;
+
+      if (effectiveness === 0) {
+        score -= 80;
+      }
+
+      if (effectiveness > 1) {
+        score += 40;
+      }
+
+      if (stab > 1) {
+        score += 15;
+      }
+
+      if (accuracy < 100) {
+        score -=
+          (100 - accuracy) * 0.3;
+      }
+
+      if (
+        speedA >= speedD
+      ) {
+        score += 10;
+      } else {
+        score -= 5;
+      }
+
+      if (
+        category === "Status" ||
+        category === "status"
+      ) {
+        score = 20;
+
+        if (
+          /Nuzzle|Will-O-Wisp|Thunder Wave|Toxic/i
+            .test(moveName)
+        ) {
+          score += 25;
+          reasons.push("状態異常");
+        }
+
+        if (
+          /Protect/i.test(moveName)
+        ) {
+          score += 20;
+          reasons.push("Protect");
+        }
+      }
+
+      if (
+        /Volt Switch|U-turn|Flip Turn/i
+          .test(moveName)
+      ) {
+        reasons.push("交代可能");
+        score += 10;
+      }
+
+      return {
+        action: ["move", moveName],
+        move: moveName,
+        category,
+        score:
+          Math.round(score * 10) / 10,
+        estimatedDamage,
+        typeEffect: effectiveness,
+        stab,
+        accuracy,
+        reason: reasons
+      };
+    }
+
+    const candidates = myMoves.map(
+      move =>
+        evaluateMove(
+          me,
+          {
+            ...opp,
+            name: opp.name,
+            types: oppTypes
+          },
+          move,
+          myTypes
+        )
+    );
+
+    candidates.sort(
+      (a, b) =>
+        b.score - a.score
+    );
+
+    const bestAction =
+      candidates[0] || {
+        action: ["none"],
+        score: 0,
+        reason: ["使用可能な技がありません"]
+      };
+
+    out.textContent =
+      JSON.stringify(
+        {
+          input: {
+            me: me.name,
+            opponent: opp.name,
+            mySpeed: getSpeed(me),
+            opponentSpeed: getSpeed(opp)
+          },
+
+          bestAction,
+
+          candidates,
+
+          note:
+            "タイプ相性・STAB・技威力・攻撃能力・防御能力・素早さ・命中率を考慮したブラウザ版軽量AI"
+        },
+        null,
+        2
+      );
 
   } catch (e) {
     out.textContent =
-      "対戦AIエラー\n\n" + e.message;
+      "対戦AIエラー\n\n" +
+      e.message;
+
+    console.error(e);
   }
 }
 
