@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pokémon Champions Singles AI</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#f4f6fb;color:#172033;margin:0}header{background:#202b44;color:#fff;padding:20px}main{max-width:1100px;margin:auto;padding:18px}
+nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px}button{padding:10px 14px;border:0;border-radius:9px;cursor:pointer}button.p{background:#405cf5;color:#fff}
+section{display:none;background:#fff;padding:18px;border-radius:14px;box-shadow:0 2px 12px #0001}section.on{display:block}
+textarea,input{box-sizing:border-box;width:100%;padding:9px;border:1px solid #ccd3e0;border-radius:8px;margin:5px 0 10px}pre{background:#111827;color:#eee;padding:14px;border-radius:10px;white-space:pre-wrap;overflow:auto}.muted{color:#667085}
+</style></head><body>
+<header><h1>Pokémon Champions Singles AI</h1><div>シングル専用・ブラウザ版</div></header><main>
+<nav><button onclick="tab('team')">①パーティー</button><button onclick="tab('legal')">②合法性</button><button onclick="tab('select')">③6→3選出</button><button onclick="tab('battle')">④対戦AI</button><button onclick="tab('review')">⑤反省</button></nav>
+<section id="team" class="on"><h2>パーティー構築</h2><p class="muted">希望ポケモンをカンマ区切りで入力。空欄ならデータから自動選択します。</p><input id="seed" placeholder="例: Garchomp,Rotom-Wash"><button class="p" onclick="makeTeam()">6体を生成</button><pre id="teamOut"></pre></section>
+<section id="legal"><h2>合法性チェック</h2><textarea id="legalIn" placeholder="team.jsonを貼り付け"></textarea><button class="p" onclick="legal()">チェック</button><pre id="legalOut"></pre></section>
+<section id="select"><h2>6→3選出</h2><textarea id="myIn" placeholder="自分の6体JSON"></textarea><textarea id="opIn" placeholder="相手の6体JSON"></textarea><button class="p" onclick="select3()">候補を探索</button><pre id="selectOut"></pre></section>
+<section id="battle"><h2>対戦AI</h2><textarea id="battleIn" placeholder='{"me":{"active":{...},"bench":[]},"opp":{"active":{...},"bench":[]}}'></textarea><label>探索深度</label><input id="depth" type="number" value="4" min="1" max="8"><button class="p" onclick="battle()">探索</button><pre id="battleOut"></pre></section>
+<section id="review"><h2>対戦レビュー</h2><textarea id="replayIn" placeholder='{"turns":[...]}"></textarea><button class="p" onclick="review()">採点</button><pre id="reviewOut"></pre></section>
+</main>
+<script>
+const ROOT="https://raw.githubusercontent.com/otterlyclueless/pokemon-champions-data/main/";
+let D={pokemon:[],moves:[],abilities:[],items:[],learnsets:{},base:{}};
+const n=s=>String(s||"").toLowerCase().replace(/[ -]/g,"");
+async function j(p){let r=await fetch(ROOT+p);if(!r.ok)throw Error(p+" の取得に失敗");return r.json()}
+function tab(id){document.querySelectorAll("section").forEach(x=>x.classList.remove("on"));document.getElementById(id).classList.add("on")}
+function findP(x){return D.pokemon.find(p=>n(p.name)==n(x))}
+function base(x){return D.base[n(x)]||{}}
+function moves(x){let k=Object.keys(D.learnsets).find(y=>n(y)==n(x));let a=D.learnsets[k]||[];return [...new Set(a.map(v=>typeof v=="string"?v:v.move).filter(Boolean))].slice(0,4)}
+function makeTeam(){
+ let names=document.getElementById("seed").value.split(",").map(x=>x.trim()).filter(Boolean),t=[],used=new Set();
+ for(let x of names){let p=findP(x);if(p&&!used.has(n(p.name))){t.push(p);used.add(n(p.name))}}
+ for(let p of D.pokemon){if(t.length>=6)break;if(!used.has(n(p.name))){t.push(p);used.add(n(p.name))}}
+ let out=t.map(p=>({name:p.name,types:p.types||[],sp:{hp:0,atk:0,def:0,spa:0,spd:0,spe:0},ability:Object.values(p.abilities||{})[0]||"",item:"",moves:moves(p.name)}));
+ document.getElementById("teamOut").textContent=JSON.stringify(out,null,2)
+}
+function legal(){
+ try{let t=JSON.parse(document.getElementById("legalIn").value),e=[],seen=new Set();if(!Array.isArray(t)||t.length!=6)e.push("6体必要");
+ t.forEach(p=>{if(seen.has(n(p.name)))e.push("同種重複: "+p.name);seen.add(n(p.name));let s=p.sp||{},sum=Object.values(s).reduce((a,b)=>a+(+b||0),0);if(sum>66)e.push(p.name+": SP合計66超過");if(Object.values(s).some(v=>+v>32))e.push(p.name+": 1能力32超過");if(!findP(p.name))e.push("未知ポケモン: "+p.name)});document.getElementById("legalOut").textContent=JSON.stringify({valid:e.length==0,errors:e},null,2)
+ }catch(e){document.getElementById("legalOut").textContent=e.message}
+}
+function score(p){let b=base(p.name),s=["hp","atk","def","spa","spd","spe"].reduce((a,k)=>a+(+b[k]||0),0);return s}
+function select3(){
+ try{let a=JSON.parse(myIn.value),o=JSON.parse(opIn.value),r=[];for(let i=0;i<a.length;i++)for(let j=i+1;j<a.length;j++)for(let k=j+1;k<a.length;k++){let q=[a[i],a[j],a[k]],types=new Set(q.flatMap(x=>x.types||[]));r.push({selection:q.map(x=>x.name),evaluation:types.size*20+q.reduce((s,x)=>s+score(x),0)/100})}r.sort((a,b)=>b.evaluation-a.evaluation);selectOut.textContent=JSON.stringify(r.slice(0,10),null,2)}catch(e){selectOut.textContent=e.message}
+}
+function battle(){
+ try{let s=JSON.parse(battleIn.value),a=s.me.active,d=s.opp.active,out=(a.moves||[]).map(m=>{let b=base(a.name),c=base(d.name),p=60,A=(b.atk||1)+20,D=(c.def||1)+20,raw=Math.floor(Math.floor(22*p*A/D)/50)+2;return{action:["move",m],estimatedDamage:[Math.floor(raw*.86),raw]}});out.sort((x,y)=>y.estimatedDamage[1]-x.estimatedDamage[1]);battleOut.textContent=JSON.stringify({depth:+depth.value,candidates:out,note:"ブラウザ版の軽量探索。特殊効果・全特性の完全再現は今後拡張可能"},null,2)}catch(e){battleOut.textContent=e.message}
+}
+function review(){try{let r=JSON.parse(replayIn.value);reviewOut.textContent=JSON.stringify({turns:r.turns||[],note:"入力ログを保持してレビューできます。AI比較は各ターンの状態JSONが必要です"},null,2)}catch(e){reviewOut.textContent=e.message}}
+Promise.all(["pokemon/roster.json","pokemon/base-stats.json","moves/moves.json","abilities/abilities.json","items/items.json","learnsets/learnsets.json"].map(j)).then(a=>{[D.pokemon,D.base,D.moves,D.abilities,D.items,D.learnsets]=a;console.log("Champions data loaded")}).catch(e=>alert("データ取得に失敗しました: "+e.message));
+</script></body></html>
