@@ -173,3 +173,131 @@ if (window.LocalData && Array.isArray(window.LocalData.pokemon)) {
     LocalData.pokemon.length
   );
 }
+const MC_BASE_STATS = {
+  "Wigglytuff": {
+    hp: 140, atk: 70, def: 45, spa: 85, spd: 50, spe: 45
+  },
+
+  "Persian": {
+    hp: 65, atk: 70, def: 60, spa: 65, spd: 65, spe: 115
+  },
+
+  "Alolan Persian": {
+    hp: 65, atk: 60, def: 60, spa: 75, spd: 65, spe: 115
+  },
+
+  "Farfetch'd": {
+    hp: 52, atk: 90, def: 55, spa: 58, spd: 62, spe: 60
+  },
+
+  "Mr. Mime": {
+    hp: 40, atk: 45, def: 65, spa: 100, spd: 120, spe: 90
+  },
+
+  "Swalot": {
+    hp: 100, atk: 73, def: 83, spa: 73, spd: 83, spe: 55
+  },
+
+  "Salamence": {
+    hp: 95, atk: 135, def: 80, spa: 110, spd: 80, spe: 100
+  },
+
+  "Gogoat": {
+    hp: 123, atk: 100, def: 62, spa: 97, spd: 81, spe: 68
+  },
+
+  "Golisopod": {
+    hp: 75, atk: 125, def: 140, spa: 60, spd: 90, spe: 40
+  },
+
+  "Rillaboom": {
+    hp: 100, atk: 125, def: 90, spa: 60, spd: 70, spe: 85
+  },
+
+  "Cinderace": {
+    hp: 80, atk: 116, def: 75, spa: 65, spd: 75, spe: 119
+  },
+
+  "Inteleon": {
+    hp: 70, atk: 85, def: 65, spa: 125, spd: 65, spe: 120
+  },
+
+  "Thievul": {
+    hp: 70, atk: 58, def: 58, spa: 87, spd: 92, spe: 90
+  },
+
+  "Toxtricity": {
+    hp: 75, atk: 98, def: 70, spa: 114, spd: 70, spe: 75
+  },
+
+  "Toxtricity-Low-Key": {
+    hp: 75, atk: 98, def: 70, spa: 114, spd: 70, spe: 75
+  },
+
+  "Grapploct": {
+    hp: 80, atk: 118, def: 90, spa: 70, spd: 80, spe: 42
+  },
+
+  "Perrserker": {
+    hp: 70, atk: 110, def: 100, spa: 50, spd: 60, spe: 50
+  },
+
+  "Sirfetch'd": {
+    hp: 62, atk: 135, def: 95, spa: 68, spd: 82, spe: 65
+  },
+
+  "Pincurchin": {
+    hp: 48, atk: 101, def: 95, spa: 91, spd: 85, spe: 15
+  },
+
+  "Indeedee": {
+    hp: 60, atk: 65, def: 55, spa: 105, spd: 95, spe: 95
+  },
+
+  "Indeedee-Female": {
+    hp: 70, atk: 55, def: 65, spa: 95, spd: 105, spe: 85
+  },
+
+  "Pawmot": {
+    hp: 70, atk: 115, def: 70, spa: 70, spd: 60, spe: 105
+  },
+
+  "Arboliva": {
+    hp: 78, atk: 69, def: 90, spa: 125, spd: 109, spe: 39
+  },
+
+  "Squawkabilly": {
+    hp: 82, atk: 96, def: 51, spa: 45, spd: 51, spe: 92
+  },
+
+  "Squawkabilly-Blue": {
+    hp: 82, atk: 96, def: 51, spa: 45, spd: 51, spe: 92
+  },
+
+  "Squawkabilly-Yellow": {
+    hp: 82, atk: 96, def: 51, spa: 45, spd: 51, spe: 92
+  },
+
+  "Squawkabilly-White": {
+    hp: 82, atk: 96, def: 51, spa: 45, spd: 51, spe: 92
+  },
+
+  "Mabosstiff": {
+    hp: 80, atk: 120, def: 90, spa: 60, spd: 70, spe: 85
+  },
+
+  "Baxcalibur": {
+    hp: 115, atk: 145, def: 92, spa: 75, spd: 86, spe: 87
+  }
+};
+
+for (const p of LocalData.pokemon) {
+  if (MC_BASE_STATS[p.name]) {
+    p.baseStats = MC_BASE_STATS[p.name];
+  }
+}
+
+console.log(
+  "M-C base stats loaded:",
+  Object.keys(MC_BASE_STATS).length
+);
