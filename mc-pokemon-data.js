@@ -164,3 +164,36 @@ const MC_POKEMON_DATA = [
 ];
 
 window.MC_POKEMON_DATA = MC_POKEMON_DATA;
+if (window.LocalData && Array.isArray(window.LocalData.pokemon)) {
+  for (const p of MC_POKEMON_DATA) {
+    const existing = window.LocalData.pokemon.find(
+      x => x.name === p.name
+    );
+
+    if (existing) {
+      existing.types = p.types;
+      existing.regulations = p.regulations;
+    } else {
+      window.LocalData.pokemon.push({
+        name: p.name,
+        types: p.types,
+        baseStats: {
+          hp: 0,
+          atk: 0,
+          def: 0,
+          spa: 0,
+          spd: 0,
+          spe: 0
+        },
+        abilities: [],
+        moves: [],
+        regulations: p.regulations
+      });
+    }
+  }
+
+  console.log(
+    "M-C data merged:",
+    LocalData.pokemon.length
+  );
+}
