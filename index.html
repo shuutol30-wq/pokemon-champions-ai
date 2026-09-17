@@ -196,7 +196,57 @@ function makeSP(p) {
       used.add(n(p.name));
     }
   }
+function chooseItem(p) {
+  const b = p.baseStats || {};
+  const moveNames = Array.isArray(p.moves) ? p.moves : [];
 
+  let physical = 0;
+  let special = 0;
+
+  for (const moveName of moveNames) {
+    const move = LocalData.getMove(moveName);
+
+    if (!move) continue;
+
+    if (move.category === "Physical") {
+      physical += Number(move.power || 0);
+    }
+
+    if (move.category === "Special") {
+      special += Number(move.power || 0);
+    }
+  }
+
+  const atk = Number(b.atk || 0);
+  const spa = Number(b.spa || 0);
+  const spe = Number(b.spe || 0);
+  const hp = Number(b.hp || 0);
+  const def = Number(b.def || 0);
+  const spd = Number(b.spd || 0);
+
+  // 高速アタッカー
+  if (spe >= 100) {
+    return "Choice Scarf";
+  }
+
+  // 特殊アタッカー
+  if (special > physical && spa >= atk) {
+    return "Choice Specs";
+  }
+
+  // 物理アタッカー
+  if (physical > special && atk >= spa) {
+    return "Life Orb";
+  }
+
+  // 耐久型
+  if (hp + def + spd >= 270) {
+    return "Leftovers";
+  }
+
+  // 最後の候補
+  return "Leftovers";
+}
   const output = team.map(p => ({
     name: p.name,
     types: p.types || [],
@@ -205,7 +255,7 @@ function makeSP(p) {
       Array.isArray(p.abilities)
         ? p.abilities[0] || ""
         : Object.values(p.abilities || {})[0] || "",
-    item: "",
+item: chooseItem(p),
     moves: moves(p.name)
   }));
 
