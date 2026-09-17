@@ -1118,442 +1118,57 @@ function select3() {
 
 ```javascript
 function battle(){
+  const out = document.getElementById("battleOut");
+
+  out.textContent = "対戦AIを実行しています...";
+
   try {
-    const s = JSON.parse(battleIn.value);
-
-    const me = s.me.active;
-    const opp = s.opp.active;
-
-    if (!me || !opp) {
-      throw new Error("自分と相手のactiveポケモンが必要です");
-    }
-
-    const myData = findP(me.name);
-    const oppData = findP(opp.name);
-
-    if (!myData) {
-      throw new Error("自分のポケモンが見つかりません: " + me.name);
-    }
-
-    if (!oppData) {
-      throw new Error("相手のポケモンが見つかりません: " + opp.name);
-    }
-
-    const myBase = base(me.name);
-    const oppBase = base(opp.name);
-
-    const mySP = me.sp || {
-      hp: 0, atk: 0, def: 0,
-      spa: 0, spd: 0, spe: 0
-    };
-
-    const oppSP = opp.sp || {
-      hp: 0, atk: 0, def: 0,
-      spa: 0, spd: 0, spe: 0
-    };
-
-    function stat(name, key, isOpp=false){
-      const b = isOpp ? oppBase : myBase;
-      const sp = isOpp ? oppSP : mySP;
-
-      return (+b[key] || 0) + (+sp[key] || 0);
-    }
-
-    /*
-     * タイプ相性
-     */
-    function typeEffect(moveType, defenderTypes){
-      let multiplier = 1;
-
-      for (const type of defenderTypes || []) {
-        const chart = LocalData.typeChart[moveType];
-
-        if (chart && chart[type] !== undefined) {
-          multiplier *= chart[type];
-        }
-      }
-
-      return multiplier;
-    }
-
-    /*
-     * STAB
-     */
-    function isSTAB(moveType, attackerTypes){
-      return (attackerTypes || []).includes(moveType);
-    }
-
-    /*
-     * 持ち物補正
-     */
-    function itemMultiplier(item, category){
-      if (
-        item === "Choice Specs" &&
-        category === "Special"
-      ) {
-        return 1.5;
-      }
-
-      if (item === "Life Orb") {
-        return 1.3;
-      }
-
-      return 1;
-    }
-
-    /*
-     * 素早さ
-     */
-    function speedValue(pokemon, baseData, spData){
-      let value =
-        (+baseData.spe || 0) +
-        (+spData.spe || 0);
-
-      if (pokemon.item === "Choice Scarf") {
-        value *= 1.5;
-      }
-
-      return value;
-    }
-
-    const mySpeed =
-      speedValue(me, myBase, mySP);
-
-    const oppSpeed =
-      speedValue(opp, oppBase, oppSP);
-
-    const candidates = [];
-
-    /*
-     * 技を1つずつ評価
-     */
-    for (const moveName of (me.moves || [])) {
-
-      const move = LocalData.getMove(moveName);
-
-      if (!move) {
-        continue;
-      }
-
-      const effect =
-        typeEffect(
-          move.type,
-          oppData.types || []
-        );
-
-      const stab =
-        isSTAB(move.type, myData.types)
-          ? 1.5
-          : 1;
-
-      let score = 0;
-      let estimatedDamage = 0;
-      const reason = [];
-
-      /*
-       * タイプ無効
-       *
-       * ここが今回の重要ポイント。
-       * Status技にもタイプ相性を適用する。
-       */
-      if (effect === 0) {
-
-        score = -100;
-
-        reason.push("タイプ相性で無効");
-
-        candidates.push({
-          action: ["move", moveName],
-          move: moveName,
-          category: move.category,
-          score,
-          estimatedDamage: 0,
-          typeEffect: effect,
-          stab,
-          usable: false,
-          reason
-        });
-
-        continue;
-      }
-
-      /*
-       * Protect
-       */
-      if (move.protect) {
-
-        score = 40;
-
-        if (oppSpeed >= mySpeed) {
-          score += 10;
-          reason.push("相手が先に動く可能性");
-        }
-
-        reason.push("Protect");
-
-        candidates.push({
-          action: ["move", moveName],
-          move: moveName,
-          category: move.category,
-          score,
-          estimatedDamage: 0,
-          typeEffect: effect,
-          stab,
-          usable: true,
-          reason
-        });
-
-        continue;
-      }
-
-      /*
-       * 状態異常技
-       */
-      if (move.category === "Status") {
-
-        if (move.status) {
-
-          score = 55;
-
-          /*
-           * 状態異常がタイプ相性上有効なら評価
-           */
-          if (effect > 0) {
-            score += 15;
-            reason.push("状態異常が有効");
-          }
-
-          /*
-           * 相手が先手なら状態異常の価値を少し上げる
-           */
-          if (oppSpeed >= mySpeed) {
-            score += 5;
-            reason.push("相手が先に動く可能性");
-          }
-
-          /*
-           * GroundタイプへのElectric状態技など
-           */
-          if (effect < 1) {
-            score -= 30;
-            reason.push("タイプ相性で効果が弱い");
-          }
-
-          reason.push("状態異常");
-        }
-
-        /*
-         * 能力上昇技
-         */
-        if (move.boosts) {
-
-          score = Math.max(score, 35);
-
-          for (const [statName, stages] of
-               Object.entries(move.boosts)) {
-
-            score += Math.abs(+stages || 0) * 10;
-
-            reason.push(
-              statName + "上昇"
-            );
-          }
-        }
-
-        candidates.push({
-          action: ["move", moveName],
-          move: moveName,
-          category: move.category,
-          score,
-          estimatedDamage: 0,
-          typeEffect: effect,
-          stab,
-          usable: true,
-          reason
-        });
-
-        continue;
-      }
-
-      /*
-       * 攻撃技
-       */
-      let attackStat;
-      let defenseStat;
-
-      if (move.category === "Physical") {
-
-        attackStat =
-          stat(me.name, "atk");
-
-        defenseStat =
-          stat(opp.name, "def", true);
-
-      } else {
-
-        attackStat =
-          stat(me.name, "spa");
-
-        defenseStat =
-          stat(opp.name, "spd", true);
-      }
-
-      const power =
-        +move.power || 0;
-
-      if (power > 0 && defenseStat > 0) {
-
-        const raw =
-          Math.floor(
-            (
-              Math.floor(
-                22 *
-                power *
-                attackStat /
-                defenseStat
-              ) / 50
-            ) + 2
-          );
-
-        estimatedDamage =
-          Math.max(
-            0,
-            Math.floor(
-              raw *
-              stab *
-              effect *
-              itemMultiplier(
-                me.item || "",
-                move.category
-              )
-            )
-          );
-      }
-
-      score = estimatedDamage;
-
-      /*
-       * 弱点
-       */
-      if (effect >= 4) {
-
-        score += 100;
-        reason.push("4倍弱点");
-
-      } else if (effect >= 2) {
-
-        score += 50;
-        reason.push("弱点");
-
-      } else if (effect < 1) {
-
-        score -= 25;
-        reason.push("半減");
-      }
-
-      /*
-       * STAB
-       */
-      if (stab > 1) {
-
-        score += 20;
-        reason.push("STAB");
-      }
-
-      /*
-       * 先手
-       */
-      if (mySpeed > oppSpeed) {
-
-        score += 10;
-        reason.push("先手");
-
-      } else {
-
-        reason.push("後手");
-      }
-
-      /*
-       * 命中率
-       */
-      if (
-        move.accuracy &&
-        move.accuracy < 100
-      ) {
-
-        score *=
-          move.accuracy / 100;
-
-        reason.push("命中率補正");
-      }
-
-      /*
-       * Volt Switch
-       */
-      if (move.switchAfter) {
-
-        score += 8;
-        reason.push("交代可能");
-      }
-
-      candidates.push({
-        action: ["move", moveName],
-        move: moveName,
-        category: move.category,
-        score: Math.round(score * 10) / 10,
-        estimatedDamage,
-        typeEffect: effect,
-        stab,
-        usable: true,
-        reason
-      });
-    }
-
-    /*
-     * スコア順
-     */
-    candidates.sort(
-      (a, b) => b.score - a.score
+    const input = JSON.parse(
+      document.getElementById("battleIn").value
     );
 
-    const best =
-      candidates.length
-        ? candidates[0]
-        : null;
+    if (!input.me || !input.me.active) {
+      throw new Error("me.active がありません");
+    }
 
-    /*
-     * 結果
-     */
-    battleOut.textContent =
-      JSON.stringify(
-        {
-          input: {
-            me: me.name,
-            opponent: opp.name,
-            myTypes: myData.types,
-            opponentTypes: oppData.types,
-            mySpeed,
-            opponentSpeed: oppSpeed
-          },
+    if (!input.opp || !input.opp.active) {
+      throw new Error("opp.active がありません");
+    }
 
-          bestAction: best,
+    const me = input.me.active;
+    const opp = input.opp.active;
 
-          candidates,
+    const myPokemon = findP(me.name);
+    const oppPokemon = findP(opp.name);
 
-          note:
-            "タイプ相性・STAB・技威力・攻撃能力・防御能力・素早さ・持ち物・命中率・状態異常技のタイプ相性を考慮"
-        },
-        null,
-        2
+    if (!myPokemon) {
+      throw new Error(
+        "自分のポケモンが見つかりません: " + me.name
       );
+    }
 
-  } catch(e) {
+    if (!oppPokemon) {
+      throw new Error(
+        "相手のポケモンが見つかりません: " + opp.name
+      );
+    }
 
-    battleOut.textContent =
-      "エラー: " + e.message;
+    out.textContent = JSON.stringify({
+      success: true,
+      message: "対戦AIの入力を正常に読み込みました。",
+      me: me.name,
+      opponent: opp.name,
+      myTypes: myPokemon.types,
+      opponentTypes: oppPokemon.types,
+      myMoves: me.moves,
+      opponentMoves: opp.moves
+    }, null, 2);
+
+  } catch (e) {
+    out.textContent =
+      "対戦AIエラー\n\n" + e.message;
   }
 }
-```
 
 
 
