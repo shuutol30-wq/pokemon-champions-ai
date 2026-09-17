@@ -75,64 +75,109 @@ window.makeTeam = function () {
     return atk >= spa ? "physical" : "special";
   }
 
-  function makeSP(p) {
-    const role = getRole(p);
+function makeSP(p) {
+  const b = p.baseStats || {};
 
-    const sp = {
-      hp: 0,
-      atk: 0,
-      def: 0,
-      spa: 0,
-      spd: 0,
-      spe: 0
-    };
+  const sp = {
+    hp: 0,
+    atk: 0,
+    def: 0,
+    spa: 0,
+    spd: 0,
+    spe: 0
+  };
 
-    const plans = {
-      physical_fast: ["atk", "spe", "hp"],
-      physical: ["atk", "hp", "spe"],
-      special_fast: ["spa", "spe", "hp"],
-      special: ["spa", "hp", "spe"],
-      fast: ["spe", "atk", "spa"],
-      bulk: ["hp", "def", "spd"]
-    };
+  // ポケモンが覚えている技から物理・特殊の傾向を調べる
+  const moveNames = Array.isArray(p.moves) ? p.moves : [];
 
-    const priority = plans[role] || ["hp", "atk", "spe"];
+  let physicalPower = 0;
+  let specialPower = 0;
 
-    let remaining = 66;
+  for (const moveName of moveNames) {
+    const move = LocalData.getMove(moveName);
 
-    const first = priority[0];
-    sp[first] = Math.min(32, remaining);
-    remaining -= sp[first];
+    if (!move) continue;
 
-    const second = priority[1];
-    sp[second] = Math.min(32, remaining);
-    remaining -= sp[second];
+    const power = Number(move.power || 0);
 
-    const third = priority[2];
-
-    if (remaining > 0) {
-      sp[third] = Math.min(32, remaining);
-      remaining -= sp[third];
+    if (move.category === "Physical") {
+      physicalPower += power;
     }
 
-    if (remaining > 0) {
-      const order = ["hp", "atk", "def", "spa", "spd", "spe"];
-
-      for (const stat of order) {
-        if (remaining <= 0) break;
-
-        const add = Math.min(
-          32 - sp[stat],
-          remaining
-        );
-
-        sp[stat] += add;
-        remaining -= add;
-      }
+    if (move.category === "Special") {
+      specialPower += power;
     }
-
-    return sp;
   }
+
+  const atk = Number(b.atk || 0);
+  const spa = Number(b.spa || 0);
+  const spe = Number(b.spe || 0);
+  const hp  = Number(b.hp || 0);
+  const def = Number(b.def || 0);
+  const spd = Number(b.spd || 0);
+
+  let role;
+
+  // 技構成を最優先して物理・特殊を判断
+  if (physicalPower > specialPower && physicalPower > 0) {
+    role = "physical";
+  } else if (specialPower > physicalPower && specialPower > 0) {
+    role = "special";
+  } else if (atk > spa) {
+    role = "physical";
+  } else {
+    role = "special";
+  }
+
+  // 素早さが高いポケモンはSも重視
+  const fast = spe >= 90;
+
+  // 耐久型の判定
+  const bulky = hp + def + spd >= 270;
+
+  let priority;
+
+  if (bulky && physicalPower === 0 && specialPower === 0) {
+    priority = ["hp", "def", "spd"];
+  } else if (role === "physical" && fast) {
+    priority = ["atk", "spe", "hp"];
+  } else if (role === "physical") {
+    priority = ["atk", "hp", "spe"];
+  } else if (role === "special" && fast) {
+    priority = ["spa", "spe", "hp"];
+  } else {
+    priority = ["spa", "hp", "spe"];
+  }
+
+  // 合計66、1能力最大32
+  let remaining = 66;
+
+  for (const stat of priority) {
+    if (remaining <= 0) break;
+
+    const amount = Math.min(32, remaining);
+
+    sp[stat] = amount;
+    remaining -= amount;
+  }
+
+  // 万一余った場合
+  const allStats = ["hp", "atk", "def", "spa", "spd", "spe"];
+
+  for (const stat of allStats) {
+    if (remaining <= 0) break;
+
+    const amount = Math.min(
+      32 - sp[stat],
+      remaining
+    );
+
+    sp[stat] += amount;
+    remaining -= amount;
+  }
+
+  return sp;
+}
 
   for (const name of names) {
     const p = findP(name);
