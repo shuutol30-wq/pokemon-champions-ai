@@ -286,188 +286,344 @@ function select3() {
       throw new Error("相手の6体を入力してください");
     }
 
-    const TYPE_NAMES = [
-      "Normal", "Fire", "Water", "Electric", "Grass",
-      "Ice", "Fighting", "Poison", "Ground", "Flying",
-      "Psychic", "Bug", "Rock", "Ghost", "Dragon",
-      "Dark", "Steel", "Fairy"
-    ];
-
+    // -----------------------------
+    // タイプ相性
+    // -----------------------------
     function typeEffect(moveType, targetTypes) {
       let multiplier = 1;
 
       for (const targetType of targetTypes || []) {
-        const row = LocalData.typeChart[moveType];
+        const chart = LocalData.typeChart[moveType];
 
-        if (row && row[targetType] !== undefined) {
-          multiplier *= Number(row[targetType]);
+        if (chart && chart[targetType] !== undefined) {
+          multiplier *= Number(chart[targetType]);
         }
       }
 
       return multiplier;
     }
 
+    // -----------------------------
+    // データ取得
+    // -----------------------------
     function getBase(p) {
       return p.baseStats || base(p.name) || {};
     }
 
     function getMoves(p) {
-      if (Array.isArray(p.moves)) {
-        return p.moves
-          .map(x => {
-            if (typeof x === "string") return x;
-            return x && x.name;
-          })
-          .filter(Boolean);
+      if (!Array.isArray(p.moves)) {
+        return [];
       }
 
-      return moves(p.name);
+      return p.moves
+        .map(m => {
+          if (typeof m === "string") {
+            return m;
+          }
+
+          return m && m.name;
+        })
+        .filter(Boolean);
     }
 
-    function getMoveData(moveName) {
-      return LocalData.getMove(moveName);
+    function getMove(name) {
+      return LocalData.getMove(name);
     }
 
-    function offensiveScore(attacker, defender) {
-      const b = getBase(attacker);
-      const targetTypes = defender.types || [];
+    // -----------------------------
+    // 物理・特殊攻撃力
+    // -----------------------------
+    function attackStat(p, move) {
+      const b = getBase(p);
 
-      let best = 0;
+      if (move.category === "Physical") {
+        return Number(b.atk || 0);
+      }
 
-      for (const moveName of getMoves(attacker)) {
-        const move = getMoveData(moveName);
+      if (move.category === "Special") {
+        return Number(b.spa || 0);
+      }
+
+      return 0;
+    }
+
+    // -----------------------------
+    // 最大攻撃評価
+    // -----------------------------
+    function bestAttack(attacker, defender) {
+      const movesList = getMoves(attacker);
+
+      let best = {
+        score: 0,
+        move: null,
+        effectiveness: 0
+      };
+
+      for (const moveName of movesList) {
+        const move = getMove(moveName);
 
         if (!move) continue;
-        if (move.category === "Status") continue;
+
+        if (move.category === "Status") {
+          continue;
+        }
 
         const power = Number(move.power || 0);
 
-        if (power <= 0) continue;
-
-        let attackStat;
-
-        if (move.category === "Physical") {
-          attackStat = Number(b.atk || 0);
-        } else {
-          attackStat = Number(b.spa || 0);
+        if (power <= 0) {
+          continue;
         }
 
-        const effectiveness =
-          typeEffect(move.type, targetTypes);
+        const atk = attackStat(
+          attacker,
+          move
+        );
+
+        const effectiveness = typeEffect(
+          move.type,
+          defender.types || []
+        );
+
+        // STAB
+        const attackerTypes =
+          attacker.types || [];
+
+        const stab =
+          attackerTypes.includes(move.type)
+            ? 1.5
+            : 1;
+
+        // 命中率
+        const accuracy =
+          Number(move.accuracy || 100) / 100;
 
         const score =
           power *
-          attackStat *
+          atk *
           effectiveness *
-          (Number(move.accuracy || 100) / 100);
+          stab *
+          accuracy;
 
-        if (score > best) {
-          best = score;
+        if (score > best.score) {
+          best = {
+            score,
+            move: moveName,
+            effectiveness
+          };
         }
       }
 
       return best;
     }
 
-    function defensiveScore(p, opponents) {
-      const b = getBase(p);
+    // -----------------------------
+    // 防御側の評価
+    // -----------------------------
+    function defensiveMatchup(
+      defender,
+      attacker
+    ) {
+      const result =
+        bestAttack(
+          attacker,
+          defender
+        );
 
-      const hp = Number(b.hp || 0);
-      const def = Number(b.def || 0);
-      const spd = Number(b.spd || 0);
+      const b = getBase(defender);
 
-      let score = hp + def + spd;
+      const hp =
+        Number(b.hp || 0);
 
-      // 相手6体から受ける最大打点を確認
-      let dangerous = 0;
+      const def =
+        Number(b.def || 0);
 
-      for (const opp of opponents) {
-        const damage = offensiveScore(opp, p);
+      const spd =
+        Number(b.spd || 0);
 
-        if (damage > dangerous) {
-          dangerous = damage;
-        }
-      }
+      const durability =
+        hp + def + spd;
 
-      // 打たれ弱い相手ほど減点
-      score -= dangerous / 100;
+      // 相手からの最大打点
+      const incoming =
+        result.score;
 
-      return score;
+      // 小さいほど安全
+      return (
+        durability -
+        incoming / 50
+      );
     }
 
-    function speedScore(p) {
-      const b = getBase(p);
-      return Number(b.spe || 0);
-    }
+    // -----------------------------
+    // 1対1の対面評価
+    // -----------------------------
+    function matchup(attacker, defender) {
+      const attack =
+        bestAttack(
+          attacker,
+          defender
+        );
 
-    function typeCoverageScore(team) {
-      let score = 0;
+      const defense =
+        bestAttack(
+          defender,
+          attacker
+        );
 
-      for (const attacker of team) {
-        for (const defender of oppTeam) {
-          const damage = offensiveScore(
-            attacker,
-            defender
-          );
-
-          if (damage > 0) {
-            score += Math.min(damage / 100, 10);
-          }
-        }
-      }
-
-      return score;
-    }
-
-    function teamScore(team) {
       let score = 0;
 
       // 攻撃性能
-      score += typeCoverageScore(team);
+      score += attack.score / 100;
 
-      // 素早さ
-      const speeds = team.map(speedScore);
-
-      score += speeds.reduce(
-        (sum, value) => sum + value,
-        0
-      ) / 50;
-
-      // 耐久
-      for (const p of team) {
-        score += defensiveScore(
-          p,
-          oppTeam
-        ) / 100;
+      // 相性
+      if (attack.effectiveness >= 4) {
+        score += 15;
+      } else if (attack.effectiveness >= 2) {
+        score += 8;
+      } else if (attack.effectiveness === 0) {
+        score -= 12;
+      } else if (attack.effectiveness < 1) {
+        score -= 5;
       }
 
-      // 役割の重複を少し減点
+      // 相手からの攻撃
+      if (defense.effectiveness >= 4) {
+        score -= 15;
+      } else if (defense.effectiveness >= 2) {
+        score -= 8;
+      } else if (defense.effectiveness === 0) {
+        score += 12;
+      } else if (defense.effectiveness < 1) {
+        score += 5;
+      }
+
+      // 素早さ
+      const aBase =
+        getBase(attacker);
+
+      const dBase =
+        getBase(defender);
+
+      const aSpeed =
+        Number(aBase.spe || 0);
+
+      const dSpeed =
+        Number(dBase.spe || 0);
+
+      if (aSpeed > dSpeed) {
+        score += 4;
+      } else if (aSpeed < dSpeed) {
+        score -= 4;
+      }
+
+      return {
+        score: Number(score.toFixed(2)),
+        bestMove: attack.move,
+        bestMoveEffectiveness:
+          attack.effectiveness,
+        opponentBestMove:
+          defense.move,
+        opponentBestMoveEffectiveness:
+          defense.effectiveness
+      };
+    }
+
+    // -----------------------------
+    // チーム全体評価
+    // -----------------------------
+    function evaluateTeam(team) {
+      let total = 0;
+      const details = [];
+
+      for (const mine of team) {
+        let best = -Infinity;
+        let bestOpponent = null;
+        let bestData = null;
+
+        for (const opp of oppTeam) {
+          const data =
+            matchup(
+              mine,
+              opp
+            );
+
+          if (data.score > best) {
+            best = data.score;
+            bestOpponent = opp.name;
+            bestData = data;
+          }
+        }
+
+        total += best;
+
+        details.push({
+          pokemon: mine.name,
+          bestMatchup: bestOpponent,
+          score: bestData.score,
+          bestMove: bestData.bestMove,
+          opponentBestMove:
+            bestData.opponentBestMove
+        });
+      }
+
+      // 3体の役割バランス
       const roles = team.map(p => {
         const b = getBase(p);
 
-        const atk = Number(b.atk || 0);
-        const spa = Number(b.spa || 0);
+        const atk =
+          Number(b.atk || 0);
 
-        if (atk > spa + 20) return "physical";
-        if (spa > atk + 20) return "special";
+        const spa =
+          Number(b.spa || 0);
 
-        return "other";
+        const spe =
+          Number(b.spe || 0);
+
+        if (atk >= spa + 20) {
+          return "physical";
+        }
+
+        if (spa >= atk + 20) {
+          return "special";
+        }
+
+        if (spe >= 100) {
+          return "fast";
+        }
+
+        return "balanced";
       });
 
-      const uniqueRoles = new Set(roles);
+      const uniqueRoles =
+        new Set(roles);
 
-      score += uniqueRoles.size * 2;
+      total +=
+        uniqueRoles.size * 3;
 
-      return score;
+      return {
+        score: Number(
+          total.toFixed(2)
+        ),
+        details
+      };
     }
 
+    // -----------------------------
+    // 6体から3体を全探索
+    // -----------------------------
     const candidates = [];
 
-    // 6体から3体を全探索
     for (let i = 0; i < myTeam.length; i++) {
-      for (let j = i + 1; j < myTeam.length; j++) {
-        for (let k = j + 1; k < myTeam.length; k++) {
-
+      for (
+        let j = i + 1;
+        j < myTeam.length;
+        j++
+      ) {
+        for (
+          let k = j + 1;
+          k < myTeam.length;
+          k++
+        ) {
           const team = [
             myTeam[i],
             myTeam[j],
@@ -475,15 +631,19 @@ function select3() {
           ];
 
           const evaluation =
-            teamScore(team);
+            evaluateTeam(team);
 
           candidates.push({
-            selection: team.map(
-              p => p.name
-            ),
-            evaluation: Number(
-              evaluation.toFixed(2)
-            )
+            selection:
+              team.map(
+                p => p.name
+              ),
+
+            evaluation:
+              evaluation.score,
+
+            matchupDetails:
+              evaluation.details
           });
         }
       }
@@ -491,23 +651,31 @@ function select3() {
 
     candidates.sort(
       (a, b) =>
-        b.evaluation - a.evaluation
+        b.evaluation -
+        a.evaluation
     );
 
+    // -----------------------------
+    // 出力
+    // -----------------------------
     const result = {
       input: {
-        myTeam: myTeam.map(
-          p => p.name
-        ),
-        opponentTeam: oppTeam.map(
-          p => p.name
-        )
+        myTeam:
+          myTeam.map(
+            p => p.name
+          ),
+
+        opponentTeam:
+          oppTeam.map(
+            p => p.name
+          )
       },
 
-      candidates: candidates.slice(0, 10),
+      candidates:
+        candidates.slice(0, 10),
 
       note:
-        "タイプ相性・技威力・攻撃能力・耐久・素早さを使った6→3候補探索"
+        "6→3対面評価：タイプ相性・STAB・技威力・攻撃能力・素早さ・相手からの打点を考慮"
     };
 
     document.getElementById(
