@@ -15,6 +15,7 @@ textarea,input{box-sizing:border-box;width:100%;padding:9px;border:1px solid #cc
 <section id="battle"><h2>対戦AI</h2><textarea id="battleIn" placeholder='{"me":{"active":{...},"bench":[]},"opp":{"active":{...},"bench":[]}}'></textarea><label>探索深度</label><input id="depth" type="number" value="4" min="1" max="8"><button class="p" onclick="battle()">探索</button><pre id="battleOut"></pre></section>
 <section id="review"><h2>対戦レビュー</h2><textarea id="replayIn" placeholder='{"turns":[...]}"></textarea><button class="p" onclick="review()">採点</button><pre id="reviewOut"></pre></section>
 </main>
+<script src="battle-engine.js"></script>
 <script>
 const ROOT="https://raw.githubusercontent.com/otterlyclueless/pokemon-champions-data/main/";
 let D={pokemon:[],moves:[],abilities:[],items:[],learnsets:{},base:{}};
