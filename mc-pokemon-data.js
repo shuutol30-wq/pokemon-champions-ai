@@ -301,3 +301,178 @@ console.log(
   "M-C base stats loaded:",
   Object.keys(MC_BASE_STATS).length
 );
+const MC_ABILITIES = {
+  "Wigglytuff": [
+    "Cute Charm",
+    "Competitive",
+    "Frisk"
+  ],
+
+  "Persian": [
+    "Limber",
+    "Technician",
+    "Unnerve"
+  ],
+
+  "Alolan Persian": [
+    "Fur Coat",
+    "Technician",
+    "Rattled"
+  ],
+
+  "Farfetch'd": [
+    "Keen Eye",
+    "Inner Focus",
+    "Defiant"
+  ],
+
+  "Mr. Mime": [
+    "Soundproof",
+    "Filter",
+    "Technician"
+  ],
+
+  "Swalot": [
+    "Liquid Ooze",
+    "Sticky Hold",
+    "Gluttony"
+  ],
+
+  "Salamence": [
+    "Intimidate",
+    "Moxie"
+  ],
+
+  "Gogoat": [
+    "Sap Sipper",
+    "Grass Pelt"
+  ],
+
+  "Golisopod": [
+    "Emergency Exit"
+  ],
+
+  "Rillaboom": [
+    "Overgrow",
+    "Grassy Surge"
+  ],
+
+  "Cinderace": [
+    "Blaze",
+    "Libero"
+  ],
+
+  "Inteleon": [
+    "Torrent",
+    "Sniper"
+  ],
+
+  "Thievul": [
+    "Run Away",
+    "Unburden",
+    "Stakeout"
+  ],
+
+  "Toxtricity": [
+    "Punk Rock",
+    "Plus",
+    "Technician"
+  ],
+
+  "Toxtricity-Low-Key": [
+    "Punk Rock",
+    "Minus",
+    "Technician"
+  ],
+
+  "Grapploct": [
+    "Limber",
+    "Technician",
+    "Mold Breaker"
+  ],
+
+  "Perrserker": [
+    "Battle Armor",
+    "Tough Claws",
+    "Steely Spirit"
+  ],
+
+  "Sirfetch'd": [
+    "Steadfast",
+    "Scrappy"
+  ],
+
+  "Pincurchin": [
+    "Lightning Rod",
+    "Electric Surge"
+  ],
+
+  "Indeedee": [
+    "Inner Focus",
+    "Synchronize",
+    "Psychic Surge"
+  ],
+
+  "Indeedee-Female": [
+    "Own Tempo",
+    "Synchronize",
+    "Psychic Surge"
+  ],
+
+  "Pawmot": [
+    "Volt Absorb",
+    "Natural Cure",
+    "Iron Fist"
+  ],
+
+  "Arboliva": [
+    "Seed Sower",
+    "Harvest"
+  ],
+
+  "Squawkabilly": [
+    "Keen Eye",
+    "Hustle",
+    "Sheer Force"
+  ],
+
+  "Squawkabilly-Blue": [
+    "Keen Eye",
+    "Hustle",
+    "Sheer Force"
+  ],
+
+  "Squawkabilly-Yellow": [
+    "Keen Eye",
+    "Hustle",
+    "Sheer Force"
+  ],
+
+  "Squawkabilly-White": [
+    "Keen Eye",
+    "Hustle",
+    "Sheer Force"
+  ],
+
+  "Mabosstiff": [
+    "Intimidate",
+    "Guard Dog",
+    "Stakeout"
+  ],
+
+  "Baxcalibur": [
+    "Thermal Exchange",
+    "Ice Body"
+  ]
+};
+
+for (const p of LocalData.pokemon) {
+  if (MC_ABILITIES[p.name]) {
+    p.abilities = MC_ABILITIES[p.name];
+  }
+}
+
+console.log(
+  "M-C abilities loaded:",
+  Object.keys(MC_ABILITIES).length
+);
