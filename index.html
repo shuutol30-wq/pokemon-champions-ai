@@ -1549,27 +1549,32 @@ function battle() {
         score -= 5;
       }
 
-      if (
-        category === "Status" ||
-        category === "status"
-      ) {
-        score = 20;
+if (
+  category === "Status" ||
+  category === "status"
+) {
+  // 無効技は状態異常技でも評価しない
+  if (effectiveness === 0) {
+    score = -100;
+  } else {
+    score = 20;
 
-        if (
-          /Nuzzle|Will-O-Wisp|Thunder Wave|Toxic/i
-            .test(moveName)
-        ) {
-          score += 25;
-          reasons.push("状態異常");
-        }
+    if (
+      /Nuzzle|Will-O-Wisp|Thunder Wave|Toxic/i
+        .test(moveName)
+    ) {
+      score += 25;
+      reasons.push("状態異常");
+    }
 
-        if (
-          /Protect/i.test(moveName)
-        ) {
-          score += 20;
-          reasons.push("Protect");
-        }
-      }
+    if (
+      /Protect/i.test(moveName)
+    ) {
+      score += 20;
+      reasons.push("Protect");
+    }
+  }
+}
 
       if (
         /Volt Switch|U-turn|Flip Turn/i
