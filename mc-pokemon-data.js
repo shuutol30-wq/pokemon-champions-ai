@@ -15,24 +15,6 @@ const MC_POKEMON_DATA = [
     regulations: ["M-C"]
   },
   {
-    name: "Persian-Alola",
-    displayName: "Persian (Alolan Form)",
-    types: ["Dark"],
-    regulations: ["M-C"]
-  },
-  {
-    name: "Farfetchd",
-    displayName: "Farfetch'd",
-    types: ["Normal", "Flying"],
-    regulations: ["M-C"]
-  },
-  {
-    name: "Mr-Mime",
-    displayName: "Mr. Mime",
-    types: ["Psychic", "Fairy"],
-    regulations: ["M-C"]
-  },
-  {
     name: "Swalot",
     types: ["Poison"],
     regulations: ["M-C"]
@@ -92,12 +74,6 @@ const MC_POKEMON_DATA = [
   {
     name: "Perrserker",
     types: ["Steel"],
-    regulations: ["M-C"]
-  },
-  {
-    name: "Sirfetchd",
-    displayName: "Sirfetch'd",
-    types: ["Fighting"],
     regulations: ["M-C"]
   },
   {
