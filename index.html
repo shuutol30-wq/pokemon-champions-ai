@@ -19,14 +19,13 @@ textarea,input{box-sizing:border-box;width:100%;padding:9px;border:1px solid #cc
 <script src="battle-engine.js"></script>
 <script>
 const ROOT="https://raw.githubusercontent.com/otterlyclueless/pokemon-champions-data/main/";
-let D={pokemon:[],moves:[],abilities:[],items:[],learnsets:{},base:{}};
 const n=s=>String(s||"").toLowerCase().replace(/[ -]/g,"");
 async function j(p){let r=await fetch(ROOT+p);if(!r.ok)throw Error(p+" の取得に失敗");return r.json()}
 function tab(id){document.querySelectorAll("section").forEach(x=>x.classList.remove("on"));document.getElementById(id).classList.add("on")}
 function findP(x){return D.pokemon.find(p=>n(p.name)==n(x))}
 function base(x){return D.base[n(x)]||{}}
 function moves(x){let k=Object.keys(D.learnsets).find(y=>n(y)==n(x));let a=D.learnsets[k]||[];return [...new Set(a.map(v=>typeof v=="string"?v:v.move).filter(Boolean))].slice(0,4)}
-function makeTeam(){
+window.makeTeam = function(){
  let names=document.getElementById("seed").value.split(",").map(x=>x.trim()).filter(Boolean),t=[],used=new Set();
  for(let x of names){let p=findP(x);if(p&&!used.has(n(p.name))){t.push(p);used.add(n(p.name))}}
  for(let p of D.pokemon){if(t.length>=6)break;if(!used.has(n(p.name))){t.push(p);used.add(n(p.name))}}
