@@ -15,6 +15,7 @@ textarea,input{box-sizing:border-box;width:100%;padding:9px;border:1px solid #cc
 <section id="battle"><h2>対戦AI</h2><textarea id="battleIn" placeholder='{"me":{"active":{...},"bench":[]},"opp":{"active":{...},"bench":[]}}'></textarea><label>探索深度</label><input id="depth" type="number" value="4" min="1" max="8"><button class="p" onclick="battle()">探索</button><pre id="battleOut"></pre></section>
 <section id="review"><h2>対戦レビュー</h2><textarea id="replayIn" placeholder='{"turns":[...]}"></textarea><button class="p" onclick="review()">採点</button><pre id="reviewOut"></pre></section>
 </main>
+<script src="data.js"></script>
 <script src="battle-engine.js"></script>
 <script>
 const ROOT="https://raw.githubusercontent.com/otterlyclueless/pokemon-champions-data/main/";
@@ -45,5 +46,22 @@ function battle(){
  try{let s=JSON.parse(battleIn.value),a=s.me.active,d=s.opp.active,out=(a.moves||[]).map(m=>{let b=base(a.name),c=base(d.name),p=60,A=(b.atk||1)+20,D=(c.def||1)+20,raw=Math.floor(Math.floor(22*p*A/D)/50)+2;return{action:["move",m],estimatedDamage:[Math.floor(raw*.86),raw]}});out.sort((x,y)=>y.estimatedDamage[1]-x.estimatedDamage[1]);battleOut.textContent=JSON.stringify({depth:+depth.value,candidates:out,note:"ブラウザ版の軽量探索。特殊効果・全特性の完全再現は今後拡張可能"},null,2)}catch(e){battleOut.textContent=e.message}
 }
 function review(){try{let r=JSON.parse(replayIn.value);reviewOut.textContent=JSON.stringify({turns:r.turns||[],note:"入力ログを保持してレビューできます。AI比較は各ターンの状態JSONが必要です"},null,2)}catch(e){reviewOut.textContent=e.message}}
-Promise.all(["pokemon/roster.json","pokemon/base-stats.json","moves/moves.json","abilities/abilities.json","items/items.json","learnsets/learnsets.json"].map(j)).then(a=>{[D.pokemon,D.base,D.moves,D.abilities,D.items,D.learnsets]=a;console.log("Champions data loaded")}).catch(e=>alert("データ取得に失敗しました: "+e.message));
+const D = {
+  pokemon: LocalData.pokemon,
+  moves: LocalData.moves,
+  abilities: LocalData.abilities,
+  items: LocalData.items,
+  learnsets: {},
+  base: Object.fromEntries(
+    LocalData.pokemon.map(p => [
+      p.name.toLowerCase(),
+      p.baseStats
+    ])
+  )
+};
+
+console.log("Local Pokémon data loaded:", D.pokemon.length);
+console.log("Local move data loaded:", Object.keys(D.moves).length);
+console.log("Local ability data loaded:", Object.keys(D.abilities).length);
+console.log("Local item data loaded:", Object.keys(D.items).length);
 </script></body></html>
