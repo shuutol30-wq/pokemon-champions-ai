@@ -629,7 +629,22 @@ function battle() {
               ? oppData.types
               : []
           );
+    
+console.log(
+  "相手:",
+  oppName
+);
 
+console.log(
+  "相手タイプ:",
+  oppTypes
+);
+
+console.log(
+  "相手データ:",
+  oppData
+);
+    
 console.log("相手:", oppName);
 console.log("相手データ:", oppData);
 console.log("相手タイプ:", oppTypes);
@@ -857,6 +872,20 @@ function effectiveness(
 
   let value = 1;
 
+  console.log(
+    "=== 相性計算開始 ==="
+  );
+
+  console.log(
+    "攻撃技タイプ:",
+    moveType
+  );
+
+  console.log(
+    "防御側タイプ:",
+    defenderTypes
+  );
+
   for (
     const defenderType of defenderTypes
   ) {
@@ -867,7 +896,6 @@ function effectiveness(
       ] ?? 1;
 
     console.log(
-      "相性チェック:",
       moveType,
       "→",
       defenderType,
@@ -879,10 +907,7 @@ function effectiveness(
   }
 
   console.log(
-    "最終タイプ相性:",
-    moveType,
-    defenderTypes,
-    "=",
+    "最終相性:",
     value
   );
 
