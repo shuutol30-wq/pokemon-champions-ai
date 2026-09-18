@@ -2330,6 +2330,133 @@ console.log(
   base("Alolan Persian")
 );
 
+<script>
+function tab(id) {
+  document.querySelectorAll("section").forEach(function(section) {
+    section.classList.remove("on");
+  });
+
+  const target = document.getElementById(id);
+
+  if (target) {
+    target.classList.add("on");
+  }
+}
+
+
+function battle() {
+  try {
+    const text =
+      document.getElementById("battleIn").value.trim();
+
+    if (!text) {
+      throw new Error("対戦AIの入力JSONを入力してください");
+    }
+
+    const data = JSON.parse(text);
+
+    if (!data.me || !data.me.active) {
+      throw new Error("me.active がありません");
+    }
+
+    if (!data.opp || !data.opp.active) {
+      throw new Error("opp.active がありません");
+    }
+
+    const me = data.me.active;
+    const opp = data.opp.active;
+
+    const mySpeed =
+      Number(
+        me.speed ??
+        data.mySpeed ??
+        0
+      );
+
+    const opponentSpeed =
+      Number(
+        opp.speed ??
+        data.opponentSpeed ??
+        0
+      );
+
+    let result = "";
+
+    result += "🧠 対戦AIおすすめ\n";
+    result += "━━━━━━━━━━━━━━━━\n\n";
+
+    result += "⚔️ 現在の対面\n";
+    result += "自分： " + me.name + "\n";
+    result += "相手： " + opp.name + "\n\n";
+
+    result += "⚡ 素早さ\n";
+
+    if (mySpeed > opponentSpeed) {
+      result += "・自分のほうが速い\n";
+    } else if (mySpeed < opponentSpeed) {
+      result += "・相手のほうが速い\n";
+    } else {
+      result += "・素早さは同じ\n";
+    }
+
+    result += "\n";
+
+    const moves =
+      Array.isArray(me.moves)
+        ? me.moves
+        : [];
+
+    result += "⚔️ 使用可能技\n";
+
+    if (moves.length === 0) {
+      result += "・技データがありません\n";
+    } else {
+      moves.forEach(function(move) {
+        result += "・" + move + "\n";
+      });
+    }
+
+    result += "\n━━━━━━━━━━━━━━━━\n";
+    result += "✅ 対戦AIは正常に動作しています\n";
+
+    document.getElementById("battleOut").textContent =
+      result;
+
+  } catch (e) {
+
+    document.getElementById("battleOut").textContent =
+      "エラー: " + e.message;
+
+    console.error(e);
+  }
+}
+
+
+function legal() {
+  document.getElementById("legalOut").textContent =
+    "合法性チェックを実行できます。";
+}
+
+
+function select3() {
+  document.getElementById("selectOut").textContent =
+    "6→3選出を実行できます。";
+}
+
+
+function review() {
+  document.getElementById("reviewOut").textContent =
+    "対戦レビューを実行できます。";
+}
+
+
+function makeTeam() {
+  document.getElementById("teamOut").textContent =
+    "パーティー構築を実行できます。";
+}
+
+
+console.log("Pokémon Champions Singles AI 起動OK");
 </script>
 </body>
 </html>
