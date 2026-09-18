@@ -1576,13 +1576,15 @@ if (
   }
 }
 
-      if (
-        /Volt Switch|U-turn|Flip Turn/i
-          .test(moveName)
-      ) {
-        reasons.push("交代可能");
-        score += 10;
-      }
+if (
+  /Volt Switch|U-turn|Flip Turn/i
+    .test(moveName)
+) {
+  if (effectiveness > 0) {
+    reasons.push("交代可能");
+    score += 10;
+  }
+}
 
       return {
         action: ["move", moveName],
