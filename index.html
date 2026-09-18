@@ -996,6 +996,24 @@ function battle() {
     const myMoves =
       getMoves(me);
 
+    console.log("自分の技:", myMoves);
+
+myMoves.forEach(function(move) {
+  console.log(
+    move,
+    "type=",
+    getMoveType(move),
+    "power=",
+    getMovePower(move),
+    "category=",
+    getMoveCategory(move),
+    "effect=",
+    effectiveness(
+      getMoveType(move),
+      oppTypes
+    )
+  );
+});
 
     const oppMoves =
       getMoves(opp);
@@ -1307,26 +1325,75 @@ function battle() {
         );
       }
 
+/*
+ * 状態異常・追加効果
+ */
 
-      /*
-       * 状態異常技
-       *
-       * ただし「無効」なら
-       * 状態異常ボーナスを与えない
-       */
-      if (
-        category === "Status" &&
-        n(moveName) !== "protect" &&
-        effect !== 0
-      ) {
+const normalizedMove =
+  n(moveName);
 
-        score += 35;
 
-        reason.push(
-          "状態異常"
-        );
-      }
+/* Nuzzle */
+if (
+  normalizedMove === "nuzzle"
+) {
 
+  /*
+   * Nuzzleは電気タイプなので
+   * 地面タイプにはダメージが入らない。
+   *
+   * ただし、このAIでは
+   * 「追加効果を狙う技」として評価する。
+   */
+
+  score += 35;
+
+  reason.push(
+    "まひを狙える"
+  );
+}
+
+
+/* Protect */
+if (
+  normalizedMove === "protect"
+) {
+
+  score += 20;
+
+  reason.push(
+    "Protect"
+  );
+}
+
+
+/* Volt Switch */
+if (
+  normalizedMove === "voltswitch"
+) {
+
+  /*
+   * 地面タイプには攻撃が無効なので
+   * 交代効果を狙う技としても評価を下げる。
+   */
+
+  if (effect === 0) {
+
+    score -= 20;
+
+    reason.push(
+      "地面タイプには攻撃が無効"
+    );
+
+  } else {
+
+    score += 10;
+
+    reason.push(
+      "交代可能"
+    );
+  }
+}
 
       /*
        * Volt Switch
