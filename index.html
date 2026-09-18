@@ -1039,131 +1039,182 @@ myMoves.forEach(function(move) {
        ダメージ計算
     ========================= */
 
-    function calculateDamage(
-      attackerName,
-      defenderName,
-      attackerTypes,
-      defenderTypes,
-      moveName
-    ) {
+function calculateDamage(
+  attackerName,
+  defenderName,
+  attackerTypes,
+  defenderTypes,
+  moveName
+) {
 
-      const category =
-        getMoveCategory(moveName);
+  const category =
+    getMoveCategory(moveName);
 
-      const power =
-        getMovePower(moveName);
+  const power =
+    getMovePower(moveName);
 
-      /*
-       * Status技は直接ダメージなし
-       */
-      if (
-        category === "Status" ||
-        power <= 0
-      ) {
-        return 0;
-      }
+  /* Status技は直接ダメージなし */
+  if (
+    category === "Status" ||
+    power <= 0
+  ) {
+    return 0;
+  }
 
+  const moveType =
+    getMoveType(moveName);
 
-      const moveType =
-        getMoveType(moveName);
+  const effect =
+    effectiveness(
+      moveType,
+      defenderTypes
+    );
 
+  /* 無効 */
+  if (effect === 0) {
+    return 0;
+  }
 
-      const effect =
-        effectiveness(
-          moveType,
-          defenderTypes
-        );
+  /*
+   * base() が利用できない場合は
+   * ダメージ計算を安全に0にする
+   */
+  if (
+    typeof base !== "function"
+  ) {
+    return 0;
+  }
 
+  const attackerBase =
+    base(attackerName) || {};
 
-      /*
-       * 無効なら必ず0
-       */
-      if (effect === 0) {
-        return 0;
-      }
+  const defenderBase =
+    base(defenderName) || {};
 
+  let attack = 1;
+  let defense = 1;
 
-      const attackerBase =
-        typeof base === "function"
-          ? base(attackerName)
-          : {};
+  if (
+    category === "Physical"
+  ) {
 
-
-      const defenderBase =
-        typeof base === "function"
-          ? base(defenderName)
-          : {};
-
-
-      let attack;
-      let defense;
-
-
-      if (
-        category === "Physical"
-      ) {
-
-        attack =
-          Number(
-            attackerBase.atk || 1
-          );
-
-        defense =
-          Number(
-            defenderBase.def || 1
-          );
-
-      } else {
-
-        attack =
-          Number(
-            attackerBase.spa || 1
-          );
-
-        defense =
-          Number(
-            defenderBase.spd || 1
-          );
-      }
-
-
-      /*
-       * 軽量ダメージ計算
-       */
-      const raw =
-        Math.floor(
-          Math.floor(
-            (
-              (
-                2 * 50 / 5
-              ) + 2
-            ) *
-            power *
-            attack /
-            Math.max(
-              1,
-              defense
-            )
-          ) / 50
-        ) + 2;
-
-
-      const stab =
-        getSTAB(
-          attackerTypes,
-          moveType
-        );
-
-
-      return Math.max(
-        0,
-        Math.floor(
-          raw *
-          stab *
-          effect
-        )
+    attack =
+      Number(
+        attackerBase.atk ?? 1
       );
-    }
+
+    defense =
+      Number(
+        defenderBase.def ?? 1
+      );
+
+  } else if (
+    category === "Special"
+  ) {
+
+    attack =
+      Number(
+        attackerBase.spa ?? 1
+      );
+
+    defense =
+      Number(
+        defenderBase.spd ?? 1
+      );
+
+  } else {
+
+    return 0;
+  }
+
+  /*
+   * 異常値防止
+   */
+  if (
+    !Number.isFinite(attack) ||
+    attack <= 0
+  ) {
+    attack = 1;
+  }
+
+  if (
+    !Number.isFinite(defense) ||
+    defense <= 0
+  ) {
+    defense = 1;
+  }
+
+  /*
+   * 軽量ダメージ計算
+   *
+   * レベル50を基準にする
+   */
+  const level = 50;
+
+  let raw =
+    Math.floor(
+      (
+        Math.floor(
+          (
+            2 * level / 5
+          ) + 2
+        ) *
+        power *
+        attack
+      ) /
+      defense
+    );
+
+  raw =
+    Math.floor(
+      raw / 50
+    ) + 2;
+
+  /*
+   * STAB
+   */
+  const stab =
+    getSTAB(
+      attackerTypes,
+      moveType
+    );
+
+  /*
+   * 最低保証
+   */
+  let damage =
+    raw *
+    stab *
+    effect;
+
+  /*
+   * 異常値防止
+   */
+  if (
+    !Number.isFinite(damage)
+  ) {
+    return 0;
+  }
+
+  damage =
+    Math.floor(damage);
+
+  /*
+   * ダメージが大きくなりすぎないよう制限
+   *
+   * 軽量AIなので最大999まで
+   */
+  damage =
+    Math.min(
+      999,
+      Math.max(
+        0,
+        damage
+      )
+    );
+
+  return damage;
+}
 
 
     /* =========================
