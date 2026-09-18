@@ -210,9 +210,12 @@ placeholder='{"turns":[...]}'
 
 </main>
 
+<script src="./data.js"></script>
+<script src="./mc-pokemon-data.js"></script>
+<script src="./mc-roster-additions.js"></script>
+<script src="./battle-engine.js"></script>
 
 <script>
-
 /* ==================================================
    タブ
 ================================================== */
@@ -221,7 +224,305 @@ function n(s) {
     .toLowerCase()
     .replace(/[ -]/g, "");
 }
+/* ==================================================
+   データベース準備
+================================================== */
 
+const pokemonMap = new Map();
+
+function mcPokemonList() {
+
+  if (
+    typeof MC_POKEMON_DATA === "undefined"
+  ) {
+    return [];
+  }
+
+  if (
+    Array.isArray(MC_POKEMON_DATA)
+  ) {
+    return MC_POKEMON_DATA;
+  }
+
+  if (
+    typeof MC_POKEMON_DATA === "object"
+  ) {
+    return Object.entries(
+      MC_POKEMON_DATA
+    ).map(function(entry) {
+
+      const name = entry[0];
+      const data = entry[1];
+
+      return {
+        name:name,
+        ...(data || {})
+      };
+
+    });
+  }
+
+  return [];
+}
+
+
+/* =========================
+   基本ポケモン
+========================= */
+
+if (
+  typeof LocalData !== "undefined" &&
+  Array.isArray(LocalData.pokemon)
+) {
+
+  LocalData.pokemon.forEach(function(p) {
+
+    if (!p || !p.name) {
+      return;
+    }
+
+    pokemonMap.set(
+      n(p.name),
+      {
+        ...p
+      }
+    );
+
+  });
+
+}
+
+
+/* =========================
+   M-Cポケモン
+========================= */
+
+const mcList =
+  mcPokemonList();
+
+mcList.forEach(function(p) {
+
+  if (!p || !p.name) {
+    return;
+  }
+
+  const key =
+    n(p.name);
+
+  const old =
+    pokemonMap.get(key) || {};
+
+  pokemonMap.set(
+    key,
+    {
+      ...old,
+      ...p
+    }
+  );
+
+});
+
+
+/* =========================
+   M-C種族値
+========================= */
+
+if (
+  typeof MC_BASE_STATS !== "undefined" &&
+  MC_BASE_STATS
+) {
+
+  Object.entries(
+    MC_BASE_STATS
+  ).forEach(function(entry) {
+
+    const name = entry[0];
+    const stats = entry[1];
+
+    const key =
+      n(name);
+
+    const old =
+      pokemonMap.get(key) || {
+        name:name,
+        types:[],
+        abilities:[],
+        moves:[]
+      };
+
+    old.baseStats = {
+      ...(old.baseStats || {}),
+      ...(stats || {})
+    };
+
+    pokemonMap.set(
+      key,
+      old
+    );
+
+  });
+
+}
+
+
+/* =========================
+   Dデータベース
+========================= */
+
+const D = {
+
+  pokemon:
+    Array.from(
+      pokemonMap.values()
+    ),
+
+  moves:
+    (
+      typeof LocalData !== "undefined" &&
+      LocalData.moves
+    )
+      ? {
+          ...LocalData.moves
+        }
+      : {},
+
+  abilities:
+    (
+      typeof LocalData !== "undefined" &&
+      LocalData.abilities
+    )
+      ? {
+          ...LocalData.abilities
+        }
+      : {},
+
+  items:
+    (
+      typeof LocalData !== "undefined" &&
+      LocalData.items
+    )
+      ? {
+          ...LocalData.items
+        }
+      : {},
+
+  base:{}
+
+};
+
+
+/* =========================
+   M-C技を追加
+========================= */
+
+if (
+  typeof MC_MOVES !== "undefined" &&
+  MC_MOVES
+) {
+
+  Object.assign(
+    D.moves,
+    MC_MOVES
+  );
+
+}
+
+
+/* =========================
+   種族値
+========================= */
+
+D.pokemon.forEach(function(p) {
+
+  if (!p || !p.name) {
+    return;
+  }
+
+  D.base[
+    n(p.name)
+  ] = {
+    ...(p.baseStats || {})
+  };
+
+});
+
+
+/* =========================
+   ポケモン検索
+========================= */
+
+function findP(name) {
+
+  if (!name) {
+    return null;
+  }
+
+  return D.pokemon.find(
+    function(p) {
+      return n(p.name) === n(name);
+    }
+  ) || null;
+
+}
+
+
+/* =========================
+   種族値取得
+========================= */
+
+function base(name) {
+
+  return D.base[
+    n(name)
+  ] || {};
+
+}
+
+
+/* =========================
+   技取得
+========================= */
+
+function movesForPokemon(name) {
+
+  const p =
+    findP(name);
+
+  if (!p) {
+    return [];
+  }
+
+  if (
+    Array.isArray(p.moves)
+  ) {
+
+    return p.moves
+      .map(function(move) {
+
+        if (
+          typeof move === "string"
+        ) {
+          return move;
+        }
+
+        if (
+          move &&
+          move.move
+        ) {
+          return move.move;
+        }
+
+        return null;
+
+      })
+      .filter(Boolean)
+      .slice(0, 4);
+
+  }
+
+  return [];
+
+}
 function tab(id){
 
   document
@@ -1630,6 +1931,334 @@ console.log(
 );
 
 </script>
+/* ==================================================
+   対戦AI 日本語表示
+================================================== */
 
+function formatBattleJapanese(data) {
+
+  if (!data) {
+    return "AIの結果がありません。";
+  }
+
+  const best =
+    data.bestAction;
+
+  const candidates =
+    data.candidates || [];
+
+  const input =
+    data.input || {};
+
+  let text = "";
+
+  text +=
+    "🧠 対戦AIのおすすめ\n";
+
+  text +=
+    "━━━━━━━━━━━━━━━━\n\n";
+
+
+  /* =========================
+     対面
+  ========================= */
+
+  if (
+    input.me &&
+    input.opponent
+  ) {
+
+    text +=
+      "⚔️ 現在の対面\n";
+
+    text +=
+      "自分： " +
+      input.me +
+      "\n";
+
+    text +=
+      "相手： " +
+      input.opponent +
+      "\n\n";
+
+  }
+
+
+  /* =========================
+     おすすめ
+  ========================= */
+
+  if (best) {
+
+    const action =
+      best.action || [];
+
+
+    if (
+      action[0] === "switch"
+    ) {
+
+      text +=
+        "🔄 おすすめ：" +
+        action[1] +
+        " に交代\n\n";
+
+    } else {
+
+      const move =
+        best.move ||
+        action[1] ||
+        "不明";
+
+      text +=
+        "⚔️ おすすめ技：" +
+        move +
+        "\n\n";
+
+    }
+
+
+    text +=
+      "【理由】\n";
+
+
+    if (
+      Array.isArray(
+        best.reason
+      ) &&
+      best.reason.length
+    ) {
+
+      best.reason.forEach(
+        function(reason) {
+
+          text +=
+            "・" +
+            translateBattleReason(
+              reason
+            ) +
+            "\n";
+
+        }
+      );
+
+    }
+
+
+    if (
+      best.estimatedDamage != null
+    ) {
+
+      text +=
+        "\n【予想ダメージ】\n";
+
+      text +=
+        "・相手に与える：約" +
+        best.estimatedDamage +
+        "\n";
+
+    }
+
+
+    if (
+      best.incomingDamage != null
+    ) {
+
+      text +=
+        "・自分が受ける：約" +
+        best.incomingDamage +
+        "\n";
+
+    }
+
+  }
+
+
+  /* =========================
+     候補
+  ========================= */
+
+  text +=
+    "\n━━━━━━━━━━━━━━━━\n";
+
+  text +=
+    "📋 その他の候補\n\n";
+
+
+  candidates.forEach(
+    function(c, index) {
+
+      const action =
+        c.action || [];
+
+      text +=
+        (index + 1) +
+        ". ";
+
+
+      if (
+        action[0] === "switch"
+      ) {
+
+        text +=
+          "🔄 " +
+          action[1] +
+          " に交代";
+
+      } else {
+
+        text +=
+          "⚔️ " +
+          (
+            c.move ||
+            action[1] ||
+            "不明"
+          );
+
+      }
+
+
+      if (
+        c.score != null
+      ) {
+
+        text +=
+          "　（評価：" +
+          c.score +
+          "）";
+
+      }
+
+
+      text += "\n";
+
+
+      if (
+        Array.isArray(c.reason) &&
+        c.reason.length
+      ) {
+
+        text +=
+          "   理由：";
+
+        text +=
+          c.reason
+            .map(
+              translateBattleReason
+            )
+            .join("、");
+
+        text += "\n";
+
+      }
+
+
+      if (
+        c.estimatedDamage != null &&
+        c.estimatedDamage > 0
+      ) {
+
+        text +=
+          "   与ダメージ：約" +
+          c.estimatedDamage +
+          "\n";
+
+      }
+
+
+      if (
+        c.incomingDamage != null &&
+        c.incomingDamage > 0
+      ) {
+
+        text +=
+          "   被ダメージ：約" +
+          c.incomingDamage +
+          "\n";
+
+      }
+
+
+      text += "\n";
+
+    }
+  );
+
+
+  return text;
+
+}
+
+
+/* ==================================================
+   理由を日本語にする
+================================================== */
+
+function translateBattleReason(
+  reason
+) {
+
+  const map = {
+
+    "無効":
+      "相手には無効",
+
+    "効果抜群":
+      "効果抜群を狙える",
+
+    "いまひとつ":
+      "効果はいまひとつ",
+
+    "STAB":
+      "タイプ一致技",
+
+    "状態異常":
+      "状態異常を狙える",
+
+    "Protect":
+      "Protectで相手の攻撃を防げる",
+
+    "交代可能":
+      "攻撃後に交代できる",
+
+    "相手が先に動く可能性":
+      "相手が先に動く可能性がある",
+
+    "こちらが先に動く可能性":
+      "こちらが先に動く可能性がある",
+
+    "素早さは同じ":
+      "素早さは同じ",
+
+    "交代先から効果抜群を狙える":
+      "交代先から効果抜群を狙える",
+
+    "交代先が相手より遅い":
+      "交代先のほうが相手より遅い",
+
+    "交代先が相手より速い":
+      "交代先のほうが相手より速い",
+
+    "相手の攻撃が弱点":
+      "相手の攻撃が弱点になる",
+
+    "相手に等倍打点":
+      "相手に等倍のダメージを与えられる",
+
+    "相手の攻撃を軽減しやすい":
+      "相手の攻撃を軽減しやすい",
+
+    "相手の攻撃を無効化できる":
+      "相手の攻撃を無効化できる"
+
+  };
+
+
+  return (
+    map[reason] ||
+    reason
+  );
+
+}
 </body>
 </html>
