@@ -1116,569 +1116,272 @@ function select3() {
    ④ 対戦AI
 ========================= */
 
+<script>
 function battle(){
   try {
     const s = JSON.parse(document.getElementById("battleIn").value);
 
-    const me = s.me || {};
-    const opp = s.opp || {};
+    const me = s.me;
+    const opp = s.opp;
 
-    const active = me.active || {};
-    const opponent = opp.active || {};
-
-    const myName = active.name;
-    const opponentName = opponent.name;
-
-    if (!myName || !opponentName) {
-      throw new Error("自分と相手のactive.nameが必要です");
+    if (!me || !me.active) {
+      throw new Error("自分の active ポケモンがありません");
     }
 
-    const myData = findP(myName);
-    const oppData = findP(opponentName);
-
-    if (!myData) {
-      throw new Error("自分のポケモンが見つかりません: " + myName);
+    if (!opp || !opp.active) {
+      throw new Error("相手の active ポケモンがありません");
     }
 
-    if (!oppData) {
-      throw new Error("相手のポケモンが見つかりません: " + opponentName);
+    const myName = me.active.name;
+    const oppName = opp.active.name;
+
+    const myBase = base(myName);
+    const oppBase = base(oppName);
+
+    const mySpeed =
+      Number(s.me.active.speed ?? s.mySpeed ?? myBase.spe ?? 0);
+
+    const opponentSpeed =
+      Number(s.opp.active.speed ?? s.opponentSpeed ?? oppBase.spe ?? 0);
+
+    const myTypes = me.active.types || findP(myName)?.types || [];
+    const oppTypes = opp.active.types || findP(oppName)?.types || [];
+
+    const myMoves = me.active.moves || moves(myName);
+
+    if (!myMoves.length) {
+      throw new Error(myName + " の技データがありません");
     }
-
-    const myTypes = active.types || myData.types || [];
-    const oppTypes = opponent.types || oppData.types || [];
-
-    const myMoves = active.moves || moves(myName) || [];
-
-    const mySpeed = Number(
-      s.mySpeed ||
-      active.speed ||
-      0
-    );
-
-    const oppSpeed = Number(
-      s.opponentSpeed ||
-      opponent.speed ||
-      0
-    );
 
     const typeChart = {
-      Normal: {
-        Rock:0.5, Ghost:0, Steel:0.5
-      },
-      Fire: {
-        Fire:0.5, Water:0.5, Grass:2,
-        Ice:2, Bug:2, Rock:0.5,
-        Dragon:0.5, Steel:2
-      },
-      Water: {
-        Fire:2, Water:0.5, Grass:0.5,
-        Ground:2, Rock:2, Dragon:0.5
-      },
-      Electric: {
-        Water:2, Electric:0.5,
-        Grass:0.5, Ground:0,
-        Flying:2, Dragon:0.5
-      },
-      Grass: {
-        Fire:0.5, Water:2, Grass:0.5,
-        Poison:0.5, Ground:2,
-        Flying:0.5, Bug:0.5,
-        Rock:2, Dragon:0.5,
-        Steel:0.5
-      },
-      Ice: {
-        Fire:0.5, Water:0.5,
-        Grass:2, Ice:0.5,
-        Ground:2, Flying:2,
-        Dragon:2, Steel:0.5
-      },
-      Fighting: {
-        Normal:2, Ice:2, Rock:2,
-        Dark:2, Steel:2,
-        Poison:0.5, Flying:0.5,
-        Psychic:0.5, Bug:0.5,
-        Fairy:0.5, Ghost:0
-      },
-      Poison: {
-        Grass:2, Poison:0.5,
-        Ground:0.5, Rock:0.5,
-        Ghost:0.5, Steel:0,
-        Fairy:2
-      },
-      Ground: {
-        Fire:2, Electric:2,
-        Grass:0.5, Poison:2,
-        Rock:2, Bug:0.5,
-        Flying:0
-      },
-      Flying: {
-        Electric:0.5, Grass:2,
-        Fighting:2, Bug:2,
-        Rock:0.5, Steel:0.5
-      },
-      Psychic: {
-        Fighting:2, Poison:2,
-        Psychic:0.5, Steel:0.5,
-        Dark:0
-      },
-      Bug: {
-        Fire:0.5, Grass:2,
-        Fighting:0.5, Poison:0.5,
-        Flying:0.5, Psychic:2,
-        Ghost:0.5, Dark:2,
-        Steel:0.5, Fairy:0.5
-      },
-      Rock: {
-        Fire:2, Ice:2,
-        Fighting:0.5, Ground:0.5,
-        Flying:2, Bug:2,
-        Steel:0.5
-      },
-      Ghost: {
-        Normal:0, Psychic:2,
-        Ghost:2, Dark:0.5
-      },
-      Dragon: {
-        Dragon:2, Steel:0.5,
-        Fairy:0
-      },
-      Dark: {
-        Fighting:0.5, Psychic:2,
-        Ghost:2, Dark:0.5,
-        Fairy:0.5
-      },
-      Steel: {
-        Fire:0.5, Water:0.5,
-        Electric:0.5, Ice:2,
-        Rock:2, Fairy:2,
-        Steel:0.5
-      },
-      Fairy: {
-        Fire:0.5, Fighting:2,
-        Poison:0.5, Dragon:2,
-        Dark:2, Steel:0.5
-      }
+      Normal:   { Rock:0.5, Ghost:0, Steel:0.5 },
+      Fire:     { Fire:0.5, Water:0.5, Grass:2, Ice:2, Bug:2, Rock:0.5, Dragon:0.5, Steel:2 },
+      Water:    { Fire:2, Water:0.5, Grass:0.5, Ground:2, Rock:2, Dragon:0.5 },
+      Electric: { Water:2, Electric:0.5, Grass:0.5, Ground:0, Flying:2, Dragon:0.5 },
+      Grass:    { Fire:0.5, Water:2, Grass:0.5, Poison:0.5, Ground:2, Flying:0.5, Bug:0.5, Rock:2, Dragon:0.5, Steel:0.5 },
+      Ice:      { Fire:0.5, Water:0.5, Grass:2, Ice:0.5, Ground:2, Flying:2, Dragon:2, Steel:0.5 },
+      Fighting: { Normal:2, Ice:2, Rock:2, Dark:2, Steel:2, Poison:0.5, Flying:0.5, Psychic:0.5, Bug:0.5, Fairy:0.5, Ghost:0 },
+      Poison:   { Grass:2, Poison:0.5, Ground:0.5, Rock:0.5, Ghost:0.5, Steel:0, Fairy:2 },
+      Ground:   { Fire:2, Electric:2, Grass:0.5, Poison:2, Flying:0, Bug:0.5, Rock:2, Steel:2 },
+      Flying:   { Grass:2, Electric:0.5, Fighting:2, Bug:2, Rock:0.5, Steel:0.5 },
+      Psychic:  { Fighting:2, Poison:2, Psychic:0.5, Steel:0.5, Dark:0 },
+      Bug:      { Fire:0.5, Grass:2, Fighting:0.5, Poison:0.5, Flying:0.5, Psychic:2, Ghost:0.5, Dark:2, Steel:0.5, Fairy:0.5 },
+      Rock:     { Fire:2, Ice:2, Fighting:0.5, Ground:0.5, Flying:2, Bug:2, Steel:0.5 },
+      Ghost:    { Normal:0, Psychic:2, Ghost:2, Dark:0.5 },
+      Dragon:   { Dragon:2, Steel:0.5, Fairy:0 },
+      Dark:     { Fighting:0.5, Psychic:2, Ghost:2, Dark:0.5, Fairy:0.5 },
+      Steel:    { Fire:0.5, Water:0.5, Electric:0.5, Ice:2, Rock:2, Fairy:2, Steel:0.5 },
+      Fairy:    { Fire:0.5, Fighting:2, Poison:0.5, Dragon:2, Dark:2, Steel:0.5 }
     };
 
-    function effectiveness(moveType, defenderTypes){
-      let value = 1;
+    function effectiveness(moveType, defenderTypes) {
+      let mult = 1;
 
-      for(const defType of defenderTypes){
-        value *=
-          typeChart[moveType] &&
-          typeChart[moveType][defType] !== undefined
-            ? typeChart[moveType][defType]
-            : 1;
+      for (const type of defenderTypes) {
+        mult *= typeChart[moveType]?.[type] ?? 1;
       }
 
-      return value;
+      return mult;
     }
 
-    function moveData(moveName){
-      const list = D.moves || {};
+    function getMoveData(name) {
+      const key = Object.keys(D.moves || {}).find(
+        x => n(x) === n(name)
+      );
 
-      if(Array.isArray(list)){
-        return list.find(m =>
-          n(m.name) === n(moveName)
-        ) || {};
+      return key ? D.moves[key] : null;
+    }
+
+    function getMoveType(moveName) {
+      const data = getMoveData(moveName);
+
+      if (typeof data === "string") return "Normal";
+
+      return data?.type || "Normal";
+    }
+
+    function getMovePower(moveName) {
+      const data = getMoveData(moveName);
+
+      if (typeof data === "object") {
+        return Number(data.power || 0);
       }
 
-      const key = Object.keys(list).find(k =>
-        n(k) === n(moveName)
-      );
-
-      return key ? list[key] : {};
+      return 0;
     }
 
-    function getMoveType(moveName){
-      const m = moveData(moveName);
+    function getMoveCategory(moveName) {
+      const data = getMoveData(moveName);
 
-      return (
-        m.type ||
-        m.Type ||
-        "Normal"
-      );
-    }
-
-    function getCategory(moveName){
-      const m = moveData(moveName);
-
-      return (
-        m.category ||
-        m.Category ||
-        "Status"
-      );
-    }
-
-    function getPower(moveName){
-      const m = moveData(moveName);
-
-      const p =
-        m.power ??
-        m.Power ??
-        0;
-
-      return Number(p) || 0;
-    }
-
-    function getAccuracy(moveName){
-      const m = moveData(moveName);
-
-      const a =
-        m.accuracy ??
-        m.Accuracy ??
-        100;
-
-      return Number(a) || 100;
-    }
-
-    function getAttackStat(category){
-      const b = base(myName);
-
-      if(
-        category === "Physical" ||
-        category === "physical"
-      ){
-        return Number(b.atk || 1);
+      if (typeof data === "object") {
+        return data.category || "Status";
       }
 
-      return Number(b.spa || 1);
+      return "Status";
     }
 
-    function getDefenseStat(category){
-      const b = base(opponentName);
+    function getMoveAccuracy(moveName) {
+      const data = getMoveData(moveName);
 
-      if(
-        category === "Physical" ||
-        category === "physical"
-      ){
-        return Number(b.def || 1);
+      if (typeof data === "object") {
+        return Number(data.accuracy ?? 100);
       }
 
-      return Number(b.spd || 1);
+      return 100;
     }
 
-    function evaluateMove(moveName){
+    function getSTAB(moveType) {
+      return myTypes.includes(moveType) ? 1.5 : 1;
+    }
 
-      const type = getMoveType(moveName);
-      const category = getCategory(moveName);
-      const power = getPower(moveName);
-      const accuracy = getAccuracy(moveName);
+    function estimateDamage(moveName) {
+      const category = getMoveCategory(moveName);
+      const power = getMovePower(moveName);
+      const moveType = getMoveType(moveName);
 
-      const effect = effectiveness(
-        type,
-        oppTypes
-      );
+      if (category === "Status" || power <= 0) {
+        return 0;
+      }
 
-      const stab =
-        effect === 0
-          ? 1
-          : myTypes.includes(type)
-            ? 1.5
-            : 1;
+      const effect = effectiveness(moveType, oppTypes);
 
-      const reasons = [];
+      if (effect === 0) {
+        return 0;
+      }
+
+      let attackStat;
+
+      if (category === "Physical") {
+        attackStat = Number(myBase.atk || 1);
+      } else {
+        attackStat = Number(myBase.spa || 1);
+      }
+
+      let defenseStat;
+
+      if (category === "Physical") {
+        defenseStat = Number(oppBase.def || 1);
+      } else {
+        defenseStat = Number(oppBase.spd || 1);
+      }
+
+      const raw =
+        Math.floor(
+          Math.floor((2 * 50 / 5 + 2) * power * attackStat / defenseStat) / 50
+        ) + 2;
+
+      return Math.floor(raw * getSTAB(moveType) * effect);
+    }
+
+    const candidates = [];
+
+    for (const moveName of myMoves) {
+      const moveType = getMoveType(moveName);
+      const category = getMoveCategory(moveName);
+      const power = getMovePower(moveName);
+      const accuracy = getMoveAccuracy(moveName);
+
+      const typeEffect = effectiveness(moveType, oppTypes);
+      const stab = getSTAB(moveType);
+
+      const damage = estimateDamage(moveName);
+
       let score = 0;
-      let damage = 0;
+      const reason = [];
 
-      if(effect === 0){
+      // 素早さ
+      if (mySpeed < opponentSpeed) {
+        score -= 10;
+        reason.push("相手が先に動く可能性");
+      } else {
+        score += 10;
+        reason.push("こちらが先に動く可能性");
+      }
 
-        score = -100;
+      // タイプ相性
+      if (typeEffect === 0) {
+        score -= 100;
+        reason.push("無効");
+      } else if (typeEffect >= 2) {
+        score += 50;
+        reason.push("効果抜群");
+      } else if (typeEffect < 1) {
+        score -= 30;
+        reason.push("いまひとつ");
+      }
 
-        reasons.push("無効");
+      // STAB
+      if (stab > 1) {
+        score += 10;
+        reason.push("STAB");
+      }
 
-      }else if(
-        category === "Status" ||
-        category === "status" ||
-        power === 0
-      ){
+      // ダメージ
+      score += damage;
 
-        score = 20;
+      // 命中率
+      if (accuracy < 100) {
+        score -= (100 - accuracy) * 0.2;
+      }
 
-        if(
-          /Nuzzle|Will-O-Wisp|Thunder Wave|Toxic/i
-            .test(moveName)
-        ){
-          score += 25;
-          reasons.push("状態異常");
-        }
+      // Protect
+      if (n(moveName) === "protect") {
+        score += 20;
+        reason.push("Protect");
+      }
 
-        if(
-          /Protect/i.test(moveName)
-        ){
-          score += 20;
-          reasons.push("Protect");
-        }
-
-      }else{
-
-        const attack =
-          getAttackStat(category);
-
-        const defense =
-          getDefenseStat(category);
-
-        damage =
-          Math.floor(
-            (
-              (
-                2 * 50 / 5 + 2
-              ) *
-              power *
-              attack /
-              Math.max(1, defense)
-              / 50
-              + 2
-            ) *
-            stab *
-            effect
-          );
-
-        score = damage * 2;
-
-        if(effect > 1){
-          score += 30;
-          reasons.push("効果抜群");
-        }
-
-        if(effect < 1){
-          score -= 20;
-          reasons.push("いまひとつ");
-        }
-
-        if(stab > 1){
-          reasons.push("STAB");
+      // 状態異常技
+      if (category === "Status" && n(moveName) !== "protect") {
+        if (typeEffect !== 0) {
+          score += 35;
+          reason.push("状態異常");
         }
       }
 
-      if(
-        accuracy < 100 &&
-        accuracy > 0
-      ){
-        score *= accuracy / 100;
+      // Volt Switch
+      if (n(moveName) === "voltswitch" && typeEffect !== 0) {
+        score += 10;
+        reason.push("交代可能");
       }
 
-      if(
-        mySpeed > 0 &&
-        oppSpeed > 0 &&
-        mySpeed < oppSpeed
-      ){
-        if(
-          /Protect/i.test(moveName)
-        ){
-          score += 10;
-          reasons.push("相手が先に動く可能性");
-        }
-      }
-
-      return {
-        action:["move", moveName],
-        move:moveName,
+      candidates.push({
+        action: ["move", moveName],
+        move: moveName,
         category,
-        score:Number(score.toFixed(2)),
-        estimatedDamage:damage,
-        typeEffect:effect,
+        score: Math.round(score * 10) / 10,
+        estimatedDamage: damage,
+        typeEffect,
         stab,
         accuracy,
-        reason:reasons
-      };
+        reason
+      });
     }
 
-    const candidates =
-      myMoves.map(evaluateMove);
+    candidates.sort((a, b) => b.score - a.score);
 
-    /*
-     * ベンチ交代候補
-     */
-    const bench =
-      Array.isArray(me.bench)
-        ? me.bench
-        : [];
+    const result = {
+      input: {
+        me: myName,
+        opponent: oppName,
+        mySpeed,
+        opponentSpeed
+      },
+      bestAction: candidates[0] || null,
+      candidates,
+      note:
+        "タイプ相性・STAB・技威力・攻撃能力・防御能力・素早さ・命中率を考慮したブラウザ版軽量AI"
+    };
 
-    for(const benchPokemon of bench){
+    document.getElementById("battleOut").textContent =
+      JSON.stringify(result, null, 2);
 
-      const name =
-        typeof benchPokemon === "string"
-          ? benchPokemon
-          : benchPokemon.name;
-
-      if(!name) continue;
-
-      const p = findP(name);
-
-      if(!p) continue;
-
-      const pTypes =
-        benchPokemon.types ||
-        p.types ||
-        [];
-
-      let bestDamage = 0;
-      let bestMove = null;
-
-      const benchMoves =
-        benchPokemon.moves ||
-        moves(name) ||
-        [];
-
-      for(const moveName of benchMoves){
-
-        const type =
-          getMoveType(moveName);
-
-        const category =
-          getCategory(moveName);
-
-        const power =
-          getPower(moveName);
-
-        const effect =
-          effectiveness(
-            type,
-            oppTypes
-          );
-
-        if(effect <= 0 || power <= 0){
-          continue;
-        }
-
-        const attack =
-          category === "Physical"
-            ? Number(base(name).atk || 1)
-            : Number(base(name).spa || 1);
-
-        const defense =
-          category === "Physical"
-            ? Number(base(opponentName).def || 1)
-            : Number(base(opponentName).spd || 1);
-
-        const stab =
-          pTypes.includes(type)
-            ? 1.5
-            : 1;
-
-        const damage =
-          Math.floor(
-            (
-              (
-                2 * 50 / 5 + 2
-              ) *
-              power *
-              attack /
-              Math.max(1, defense)
-              / 50
-              + 2
-            ) *
-            stab *
-            effect
-          );
-
-        if(damage > bestDamage){
-          bestDamage = damage;
-          bestMove = moveName;
-        }
-      }
-
-      /*
-       * ベンチに有効打がある場合は
-       * 交代候補として評価
-       */
-      if(bestMove){
-
-        let switchScore =
-          bestDamage * 2 + 20;
-
-        if(
-          mySpeed > 0 &&
-          oppSpeed > 0
-        ){
-          const benchSpeed =
-            Number(
-              base(name).spe || 0
-            );
-
-          if(benchSpeed > oppSpeed){
-            switchScore += 15;
-          }
-        }
-
-        candidates.push({
-          action:["switch", name],
-          pokemon:name,
-          score:Number(
-            switchScore.toFixed(2)
-          ),
-          estimatedDamage:bestDamage,
-          bestMove,
-          reason:[
-            "交代候補",
-            "相手への有効打",
-            bestMove
-          ]
-        });
-      }
-    }
-
-    /*
-     * 現在の技が全部無効なら
-     * 交代を強く優先
-     */
-    const usableMoves =
-      candidates.filter(x =>
-        x.action[0] === "move" &&
-        x.typeEffect > 0
-      );
-
-    const switchCandidates =
-      candidates.filter(x =>
-        x.action[0] === "switch"
-      );
-
-    if(
-      usableMoves.length === 0 &&
-      switchCandidates.length > 0
-    ){
-      for(const x of switchCandidates){
-        x.score += 200;
-        x.reason.push(
-          "有効な攻撃技がないため交代を優先"
-        );
-      }
-    }
-
-    candidates.sort(
-      (a,b) => b.score - a.score
-    );
-
-    const best =
-      candidates[0] || null;
-
-    document.getElementById(
-      "battleOut"
-    ).textContent =
-      JSON.stringify({
-        input:{
-          me:myName,
-          opponent:opponentName,
-          mySpeed,
-          opponentSpeed
-        },
-        bestAction:best,
-        candidates:candidates.slice(0,10),
-        note:
-          "タイプ相性・STAB・技威力・攻撃能力・防御能力・素早さ・ベンチ交代を考慮した対戦AI"
-      },null,2);
-
-  }catch(e){
-
-    document.getElementById(
-      "battleOut"
-    ).textContent =
+  } catch (e) {
+    document.getElementById("battleOut").textContent =
       "エラー: " + e.message;
-
     console.error(e);
   }
 }
+</script>
 
 
 
