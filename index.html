@@ -633,6 +633,10 @@ function battle() {
 console.log("相手:", oppName);
 console.log("相手データ:", oppData);
 console.log("相手タイプ:", oppTypes);
+    console.log(
+  "自分タイプ:",
+  myTypes
+);
 
     /* =========================
        素早さ
@@ -846,25 +850,44 @@ console.log("相手タイプ:", oppTypes);
     };
 
 
-    function effectiveness(
+function effectiveness(
+  moveType,
+  defenderTypes
+) {
+
+  let value = 1;
+
+  for (
+    const defenderType of defenderTypes
+  ) {
+
+    const multiplier =
+      typeChart[moveType]?.[
+        defenderType
+      ] ?? 1;
+
+    console.log(
+      "相性チェック:",
       moveType,
-      defenderTypes
-    ) {
+      "→",
+      defenderType,
+      "=",
+      multiplier
+    );
 
-      let value = 1;
+    value *= multiplier;
+  }
 
-      for (
-        const defenderType of defenderTypes
-      ) {
+  console.log(
+    "最終タイプ相性:",
+    moveType,
+    defenderTypes,
+    "=",
+    value
+  );
 
-        value *=
-          typeChart[moveType]?.[
-            defenderType
-          ] ?? 1;
-      }
-
-      return value;
-    }
+  return value;
+}
 
 
     /* =========================
