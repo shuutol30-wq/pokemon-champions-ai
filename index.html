@@ -243,65 +243,101 @@ function tab(id){
    ④ 対戦AI
 ================================================== */
 
-function battle(){
+function battle() {
+  try {
 
-  try{
+    const text =
+      document.getElementById("battleIn").value.trim();
 
-    const input =
-      document
-        .getElementById("battleIn")
-        .value
-        .trim();
-
-
-    if(!input){
-
+    if (!text) {
       throw new Error(
         "対戦AIの入力JSONを入力してください"
       );
-
     }
 
+    const data = JSON.parse(text);
 
-    const data =
-      JSON.parse(input);
-
-
-    if(
-      !data.me ||
-      !data.me.active
-    ){
-
+    if (!data.me || !data.me.active) {
       throw new Error(
-        "自分のactiveポケモンがありません"
+        "me.active がありません"
       );
-
     }
 
-
-    if(
-      !data.opp ||
-      !data.opp.active
-    ){
-
+    if (!data.opp || !data.opp.active) {
       throw new Error(
-        "相手のactiveポケモンがありません"
+        "opp.active がありません"
       );
+    }
 
+    const me = data.me.active;
+    const opp = data.opp.active;
+
+    const myName = me.name;
+    const oppName = opp.name;
+
+    if (!myName) {
+      throw new Error(
+        "自分のポケモン名がありません"
+      );
+    }
+
+    if (!oppName) {
+      throw new Error(
+        "相手のポケモン名がありません"
+      );
     }
 
 
-    const me =
-      data.me.active;
+    /* =========================
+       ポケモンデータ
+    ========================= */
 
-    const opp =
-      data.opp.active;
+    const myData =
+      typeof findP === "function"
+        ? findP(myName)
+        : null;
 
+    const oppData =
+      typeof findP === "function"
+        ? findP(oppName)
+        : null;
+
+
+    const myTypes =
+      Array.isArray(me.types)
+        ? me.types
+        : (
+            myData &&
+            Array.isArray(myData.types)
+              ? myData.types
+              : []
+          );
+
+
+    const oppTypes =
+      Array.isArray(opp.types)
+        ? opp.types
+        : (
+            oppData &&
+            Array.isArray(oppData.types)
+              ? oppData.types
+              : []
+          );
+
+
+    /* =========================
+       素早さ
+    ========================= */
 
     const mySpeed =
       Number(
         me.speed ??
         data.mySpeed ??
+        (
+          typeof base === "function"
+            ? base(myName).spe
+            : 0
+        ) ??
         0
       );
 
@@ -310,80 +346,28 @@ function battle(){
       Number(
         opp.speed ??
         data.opponentSpeed ??
+        (
+          typeof base === "function"
+            ? base(oppName).spe
+            : 0
+        ) ??
         0
       );
 
 
-    const myMoves =
-      Array.isArray(me.moves)
-        ? me.moves
-        : [];
+    /* =========================
+       タイプ相性表
+    ========================= */
 
+    const typeChart = {
 
-    const myTypes =
-      Array.isArray(me.types)
-        ? me.types
-        : [];
-
-
-    const oppTypes =
-      Array.isArray(opp.types)
-        ? opp.types
-        : [];
-
-
-    /*
-     * ==========================================
-     * タイプ相性表
-     * ==========================================
-     */
-
-    const chart = {
-
-      Electric:{
-        Water:2,
-        Electric:0.5,
-        Grass:0.5,
-        Ground:0,
-        Flying:2,
-        Dragon:0.5
-      },
-
-      Ground:{
-        Fire:2,
-        Electric:2,
-        Grass:0.5,
-        Poison:2,
-        Flying:0,
-        Bug:0.5,
-        Rock:2,
-        Steel:2
-      },
-
-      Ice:{
-        Fire:0.5,
-        Water:0.5,
-        Grass:2,
-        Ice:0.5,
-        Ground:2,
-        Flying:2,
-        Dragon:2,
-        Steel:0.5
-      },
-
-      Dragon:{
-        Dragon:2,
-        Steel:0.5,
-        Fairy:0
-      },
-
-      Normal:{
+      Normal: {
         Rock:0.5,
         Ghost:0,
         Steel:0.5
       },
 
-      Fire:{
+      Fire: {
         Fire:0.5,
         Water:0.5,
         Grass:2,
@@ -394,7 +378,7 @@ function battle(){
         Steel:2
       },
 
-      Water:{
+      Water: {
         Fire:2,
         Water:0.5,
         Grass:0.5,
@@ -403,17 +387,146 @@ function battle(){
         Dragon:0.5
       },
 
-      Fighting:{
+      Electric: {
+        Water:2,
+        Electric:0.5,
+        Grass:0.5,
+        Ground:0,
+        Flying:2,
+        Dragon:0.5
+      },
+
+      Grass: {
+        Fire:0.5,
+        Water:2,
+        Grass:0.5,
+        Poison:0.5,
+        Ground:2,
+        Flying:0.5,
+        Bug:0.5,
+        Rock:2,
+        Dragon:0.5,
+        Steel:0.5
+      },
+
+      Ice: {
+        Fire:0.5,
+        Water:0.5,
+        Grass:2,
+        Ice:0.5,
+        Ground:2,
+        Flying:2,
+        Dragon:2,
+        Steel:0.5
+      },
+
+      Fighting: {
         Normal:2,
         Ice:2,
         Rock:2,
         Dark:2,
         Steel:2,
-        Ghost:0,
+        Poison:0.5,
+        Flying:0.5,
+        Psychic:0.5,
+        Bug:0.5,
+        Fairy:0.5,
+        Ghost:0
+      },
+
+      Poison: {
+        Grass:2,
+        Poison:0.5,
+        Ground:0.5,
+        Rock:0.5,
+        Ghost:0.5,
+        Steel:0,
+        Fairy:2
+      },
+
+      Ground: {
+        Fire:2,
+        Electric:2,
+        Grass:0.5,
+        Poison:2,
+        Flying:0,
+        Bug:0.5,
+        Rock:2,
+        Steel:2
+      },
+
+      Flying: {
+        Grass:2,
+        Electric:0.5,
+        Fighting:2,
+        Bug:2,
+        Rock:0.5,
+        Steel:0.5
+      },
+
+      Psychic: {
+        Fighting:2,
+        Poison:2,
+        Psychic:0.5,
+        Steel:0.5,
+        Dark:0
+      },
+
+      Bug: {
+        Fire:0.5,
+        Grass:2,
+        Fighting:0.5,
+        Poison:0.5,
+        Flying:0.5,
+        Psychic:2,
+        Ghost:0.5,
+        Dark:2,
+        Steel:0.5,
         Fairy:0.5
       },
 
-      Fairy:{
+      Rock: {
+        Fire:2,
+        Ice:2,
+        Fighting:0.5,
+        Ground:0.5,
+        Flying:2,
+        Bug:2,
+        Steel:0.5
+      },
+
+      Ghost: {
+        Normal:0,
+        Psychic:2,
+        Ghost:2,
+        Dark:0.5
+      },
+
+      Dragon: {
+        Dragon:2,
+        Steel:0.5,
+        Fairy:0
+      },
+
+      Dark: {
+        Fighting:0.5,
+        Psychic:2,
+        Ghost:2,
+        Dark:0.5,
+        Fairy:0.5
+      },
+
+      Steel: {
+        Fire:0.5,
+        Water:0.5,
+        Electric:0.5,
+        Ice:2,
+        Rock:2,
+        Fairy:2,
+        Steel:0.5
+      },
+
+      Fairy: {
         Fire:0.5,
         Fighting:2,
         Poison:0.5,
@@ -421,785 +534,961 @@ function battle(){
         Dark:2,
         Steel:0.5
       }
-
     };
 
 
     function effectiveness(
       moveType,
       defenderTypes
-    ){
+    ) {
 
       let value = 1;
 
+      for (
+        const defenderType of defenderTypes
+      ) {
 
-      defenderTypes.forEach(
-        function(type){
-
-          value *=
-            chart[moveType]?.[type] ?? 1;
-
-        }
-      );
-
+        value *=
+          typeChart[moveType]?.[
+            defenderType
+          ] ?? 1;
+      }
 
       return value;
-
     }
 
 
-    function getMoveType(move){
+    /* =========================
+       技データ
+    ========================= */
 
-      const types = {
+    function getMoveData(moveName) {
 
-        Thunderbolt:"Electric",
-        "Volt Switch":"Electric",
-        Nuzzle:"Electric",
-        Protect:"Normal",
+      if (
+        typeof D === "undefined" ||
+        !D.moves
+      ) {
+        return null;
+      }
 
-        Earthquake:"Ground",
-        "Dragon Claw":"Dragon",
-        "Swords Dance":"Normal"
+      const key =
+        Object.keys(D.moves).find(
+          key =>
+            n(key) === n(moveName)
+        );
 
-      };
-
-
-      return types[move] || "Normal";
-
+      return key
+        ? D.moves[key]
+        : null;
     }
 
 
-    function getMoveCategory(move){
+    function getMoveType(moveName) {
 
-      const status = [
-        "Nuzzle",
-        "Protect",
-        "Swords Dance"
-      ];
+      const move =
+        getMoveData(moveName);
 
+      if (
+        move &&
+        typeof move === "object"
+      ) {
+        return move.type || "Normal";
+      }
 
-      return status.includes(move)
-        ? "Status"
-        : "Special";
-
+      return "Normal";
     }
 
 
-    function isStatus(move){
+    function getMovePower(moveName) {
 
-      return (
-        move === "Nuzzle" ||
-        move === "Protect" ||
-        move === "Swords Dance"
+      const move =
+        getMoveData(moveName);
+
+      if (
+        move &&
+        typeof move === "object"
+      ) {
+        return Number(
+          move.power || 0
+        );
+      }
+
+      return 0;
+    }
+
+
+    function getMoveCategory(moveName) {
+
+      const move =
+        getMoveData(moveName);
+
+      if (
+        move &&
+        typeof move === "object"
+      ) {
+        return (
+          move.category ||
+          "Status"
+        );
+      }
+
+      return "Status";
+    }
+
+
+    function getMoveAccuracy(moveName) {
+
+      const move =
+        getMoveData(moveName);
+
+      if (
+        move &&
+        typeof move === "object"
+      ) {
+        return Number(
+          move.accuracy ?? 100
+        );
+      }
+
+      return 100;
+    }
+
+
+    /* =========================
+       技取得
+    ========================= */
+
+    function getMoves(pokemon) {
+
+      if (
+        pokemon &&
+        Array.isArray(pokemon.moves) &&
+        pokemon.moves.length > 0
+      ) {
+        return pokemon.moves
+          .map(move =>
+            typeof move === "string"
+              ? move
+              : move?.move
+          )
+          .filter(Boolean)
+          .slice(0, 4);
+      }
+
+      if (
+        typeof movesForPokemon === "function"
+      ) {
+        return movesForPokemon(
+          pokemon.name
+        );
+      }
+
+      return [];
+    }
+
+
+    const myMoves =
+      getMoves(me);
+
+
+    const oppMoves =
+      getMoves(opp);
+
+
+    /* =========================
+       STAB
+    ========================= */
+
+    function getSTAB(
+      types,
+      moveType
+    ) {
+
+      return Array.isArray(types) &&
+        types.includes(moveType)
+        ? 1.5
+        : 1;
+    }
+
+
+    /* =========================
+       ダメージ計算
+    ========================= */
+
+    function calculateDamage(
+      attackerName,
+      defenderName,
+      attackerTypes,
+      defenderTypes,
+      moveName
+    ) {
+
+      const category =
+        getMoveCategory(moveName);
+
+      const power =
+        getMovePower(moveName);
+
+      /*
+       * Status技は直接ダメージなし
+       */
+      if (
+        category === "Status" ||
+        power <= 0
+      ) {
+        return 0;
+      }
+
+
+      const moveType =
+        getMoveType(moveName);
+
+
+      const effect =
+        effectiveness(
+          moveType,
+          defenderTypes
+        );
+
+
+      /*
+       * 無効なら必ず0
+       */
+      if (effect === 0) {
+        return 0;
+      }
+
+
+      const attackerBase =
+        typeof base === "function"
+          ? base(attackerName)
+          : {};
+
+
+      const defenderBase =
+        typeof base === "function"
+          ? base(defenderName)
+          : {};
+
+
+      let attack;
+      let defense;
+
+
+      if (
+        category === "Physical"
+      ) {
+
+        attack =
+          Number(
+            attackerBase.atk || 1
+          );
+
+        defense =
+          Number(
+            defenderBase.def || 1
+          );
+
+      } else {
+
+        attack =
+          Number(
+            attackerBase.spa || 1
+          );
+
+        defense =
+          Number(
+            defenderBase.spd || 1
+          );
+      }
+
+
+      /*
+       * 軽量ダメージ計算
+       */
+      const raw =
+        Math.floor(
+          Math.floor(
+            (
+              (
+                2 * 50 / 5
+              ) + 2
+            ) *
+            power *
+            attack /
+            Math.max(
+              1,
+              defense
+            )
+          ) / 50
+        ) + 2;
+
+
+      const stab =
+        getSTAB(
+          attackerTypes,
+          moveType
+        );
+
+
+      return Math.max(
+        0,
+        Math.floor(
+          raw *
+          stab *
+          effect
+        )
       );
-
     }
 
 
-    /*
-     * ==========================================
-     * 技候補
-     * ==========================================
-     */
+    /* =========================
+       技評価
+    ========================= */
+
+    function evaluateMove(
+      moveName
+    ) {
+
+      const category =
+        getMoveCategory(
+          moveName
+        );
+
+      const moveType =
+        getMoveType(
+          moveName
+        );
+
+      const accuracy =
+        getMoveAccuracy(
+          moveName
+        );
+
+      const effect =
+        effectiveness(
+          moveType,
+          oppTypes
+        );
+
+      const stab =
+        getSTAB(
+          myTypes,
+          moveType
+        );
+
+      const estimatedDamage =
+        calculateDamage(
+          myName,
+          oppName,
+          myTypes,
+          oppTypes,
+          moveName
+        );
+
+
+      let score = 0;
+
+      const reason = [];
+
+
+      /* 素早さ */
+
+      if (
+        mySpeed < opponentSpeed
+      ) {
+
+        score -= 10;
+
+        reason.push(
+          "相手が先に動く可能性"
+        );
+
+      } else if (
+        mySpeed > opponentSpeed
+      ) {
+
+        score += 10;
+
+        reason.push(
+          "こちらが先に動く可能性"
+        );
+
+      } else {
+
+        reason.push(
+          "素早さは同じ"
+        );
+      }
+
+
+      /* タイプ相性 */
+
+      if (effect === 0) {
+
+        score -= 100;
+
+        reason.push(
+          "無効"
+        );
+
+      } else if (
+        effect >= 2
+      ) {
+
+        score += 50;
+
+        reason.push(
+          "効果抜群"
+        );
+
+      } else if (
+        effect < 1
+      ) {
+
+        score -= 30;
+
+        reason.push(
+          "いまひとつ"
+        );
+      }
+
+
+      /* STAB */
+
+      if (
+        stab > 1
+      ) {
+
+        score += 10;
+
+        reason.push(
+          "STAB"
+        );
+      }
+
+
+      /*
+       * ダメージ
+       */
+      score += estimatedDamage;
+
+
+      /*
+       * 命中率
+       */
+      if (
+        accuracy < 100
+      ) {
+
+        score -=
+          (100 - accuracy) *
+          0.2;
+      }
+
+
+      /*
+       * Protect
+       */
+      if (
+        n(moveName) === "protect"
+      ) {
+
+        score += 20;
+
+        reason.push(
+          "Protect"
+        );
+      }
+
+
+      /*
+       * 状態異常技
+       *
+       * ただし「無効」なら
+       * 状態異常ボーナスを与えない
+       */
+      if (
+        category === "Status" &&
+        n(moveName) !== "protect" &&
+        effect !== 0
+      ) {
+
+        score += 35;
+
+        reason.push(
+          "状態異常"
+        );
+      }
+
+
+      /*
+       * Volt Switch
+       */
+      if (
+        n(moveName) ===
+        "voltswitch" &&
+        effect !== 0
+      ) {
+
+        score += 10;
+
+        reason.push(
+          "交代可能"
+        );
+      }
+
+
+      return {
+
+        action:[
+          "move",
+          moveName
+        ],
+
+        move:
+          moveName,
+
+        category:
+          category,
+
+        score:
+          Math.round(
+            score * 10
+          ) / 10,
+
+        estimatedDamage:
+          estimatedDamage,
+
+        typeEffect:
+          effect,
+
+        stab:
+          stab,
+
+        accuracy:
+          accuracy,
+
+        reason:
+          reason
+      };
+    }
+
+
+    /* =========================
+       技候補
+    ========================= */
 
     const candidates = [];
 
 
-    myMoves.forEach(
-      function(move){
+    for (
+      const move of myMoves
+    ) {
 
-        const type =
-          getMoveType(move);
+      candidates.push(
+        evaluateMove(move)
+      );
+    }
+
+
+    /* =========================
+       交代候補
+    ========================= */
+
+    const bench =
+      Array.isArray(me.bench)
+        ? me.bench
+        : [];
+
+
+    function evaluateSwitch(
+      benchPokemon
+    ) {
+
+      const name =
+        typeof benchPokemon === "string"
+          ? benchPokemon
+          : benchPokemon?.name;
+
+
+      if (!name) {
+        return null;
+      }
+
+
+      if (
+        n(name) === n(myName)
+      ) {
+        return null;
+      }
+
+
+      const p =
+        typeof findP === "function"
+          ? findP(name)
+          : null;
+
+
+      if (!p) {
+        return null;
+      }
+
+
+      const types =
+        Array.isArray(
+          benchPokemon?.types
+        )
+          ? benchPokemon.types
+          : (
+              Array.isArray(p.types)
+                ? p.types
+                : []
+            );
+
+
+      const benchMoves =
+        Array.isArray(
+          benchPokemon?.moves
+        )
+          ? benchPokemon.moves
+          : (
+              typeof movesForPokemon ===
+              "function"
+                ? movesForPokemon(name)
+                : []
+            );
+
+
+      /*
+       * 相手から受ける最大ダメージ
+       */
+      let bestIncoming = null;
+
+
+      for (
+        const move of oppMoves
+      ) {
+
+        const d =
+          calculateDamage(
+            oppName,
+            name,
+            oppTypes,
+            types,
+            move
+          );
 
 
         const effect =
           effectiveness(
-            type,
+            getMoveType(move),
+            types
+          );
+
+
+        if (
+          !bestIncoming ||
+          d >
+            bestIncoming.damage
+        ) {
+
+          bestIncoming = {
+
+            move:
+              move,
+
+            damage:
+              d,
+
+            typeEffect:
+              effect
+
+          };
+        }
+      }
+
+
+      /*
+       * 交代先から相手への最大打点
+       */
+      let bestOutgoing = null;
+
+
+      for (
+        const move of benchMoves
+      ) {
+
+        const d =
+          calculateDamage(
+            name,
+            oppName,
+            types,
+            oppTypes,
+            move
+          );
+
+
+        const effect =
+          effectiveness(
+            getMoveType(move),
             oppTypes
           );
 
 
-        const category =
-          getMoveCategory(move);
+        if (
+          !bestOutgoing ||
+          d >
+            bestOutgoing.damage
+        ) {
 
+          bestOutgoing = {
 
-        let score = 0;
+            move:
+              move,
 
-        const reason = [];
+            damage:
+              d,
 
+            typeEffect:
+              effect
 
-        /*
-         * 素早さ
-         */
-
-        if(
-          mySpeed <
-          opponentSpeed
-        ){
-
-          score -= 10;
-
-          reason.push(
-            "相手が先に動く可能性"
-          );
-
-        }else{
-
-          score += 10;
-
-          reason.push(
-            "こちらが先に動く可能性"
-          );
-
+          };
         }
-
-
-        /*
-         * タイプ相性
-         */
-
-        if(effect === 0){
-
-          score -= 100;
-
-          reason.push(
-            "無効"
-          );
-
-        }
-
-        else if(effect >= 2){
-
-          score += 50;
-
-          reason.push(
-            "効果抜群"
-          );
-
-        }
-
-        else if(effect < 1){
-
-          score -= 30;
-
-          reason.push(
-            "いまひとつ"
-          );
-
-        }
-
-
-        /*
-         * STAB
-         */
-
-        const stab =
-          myTypes.includes(type)
-            ? 1.5
-            : 1;
-
-
-        if(stab > 1){
-
-          score += 10;
-
-          reason.push(
-            "STAB"
-          );
-
-        }
-
-
-        /*
-         * 状態異常
-         */
-
-        if(
-          move === "Nuzzle" &&
-          effect !== 0
-        ){
-
-          score += 35;
-
-          reason.push(
-            "状態異常"
-          );
-
-        }
-
-
-        /*
-         * Protect
-         */
-
-        if(
-          move === "Protect"
-        ){
-
-          score += 20;
-
-          reason.push(
-            "Protect"
-          );
-
-        }
-
-
-        /*
-         * Volt Switch
-         */
-
-        if(
-          move === "Volt Switch" &&
-          effect !== 0
-        ){
-
-          score += 10;
-
-          reason.push(
-            "交代可能"
-          );
-
-        }
-
-
-        /*
-         * ダメージの簡易値
-         */
-
-        let estimatedDamage = 0;
-
-
-        if(!isStatus(move)){
-
-          const baseDamage =
-            50;
-
-
-          estimatedDamage =
-            Math.round(
-              baseDamage *
-              effect *
-              stab
-            );
-
-        }
-
-
-        candidates.push({
-
-          action:[
-            "move",
-            move
-          ],
-
-          move,
-
-          category,
-
-          score,
-
-          estimatedDamage,
-
-          typeEffect:effect,
-
-          stab,
-
-          accuracy:100,
-
-          reason
-
-        });
-
       }
-    );
 
 
-    /*
-     * ==========================================
-     * ベンチ評価
-     * ==========================================
-     */
+      let score = 20;
 
-    const bench =
-      Array.isArray(data.me.bench)
-        ? data.me.bench
-        : [];
+      const reason = [];
 
 
-    bench.forEach(
-      function(pokemon){
+      /*
+       * 相手からの攻撃
+       */
+      if (bestIncoming) {
 
-        const name =
-          typeof pokemon === "string"
-            ? pokemon
-            : pokemon.name;
+        if (
+          bestIncoming.typeEffect === 0
+        ) {
 
+          score += 45;
 
-        if(!name){
+          reason.push(
+            "相手の攻撃を無効化できる"
+          );
 
-          return;
+        } else if (
+          bestIncoming.typeEffect <= 0.5
+        ) {
 
+          score += 30;
+
+          reason.push(
+            "相手の攻撃を軽減しやすい"
+          );
+
+        } else if (
+          bestIncoming.typeEffect >= 2
+        ) {
+
+          score -= 45;
+
+          reason.push(
+            "相手の攻撃が弱点"
+          );
         }
+      }
 
 
-        /*
-         * 今は簡易的に
-         * 交代候補として評価
-         */
+      /*
+       * 交代先からの攻撃
+       */
+      if (bestOutgoing) {
 
-        let score = 20;
+        if (
+          bestOutgoing.typeEffect >= 2
+        ) {
 
-        const reason = [];
-
-
-        /*
-         * Pikachu → Garchomp
-         * のように電気無効なら
-         * 交代先から別の打点を狙う
-         */
-
-        if(
-          name === "Wigglytuff"
-        ){
-
-          score += 40;
+          score += 45;
 
           reason.push(
             "交代先から効果抜群を狙える"
           );
 
-          reason.push(
-            "交代先が相手より遅い"
-          );
+        } else if (
+          bestOutgoing.typeEffect === 1
+        ) {
 
-        }
-
-
-        if(
-          name === "Rotom-Wash"
-        ){
-
-          score -= 40;
+          score += 10;
 
           reason.push(
-            "相手の攻撃が弱点"
+            "相手に等倍打点"
           );
 
+        } else if (
+          bestOutgoing.typeEffect === 0
+        ) {
+
+          score -= 25;
+
+          reason.push(
+            "相手への攻撃が無効"
+          );
         }
-
-
-        candidates.push({
-
-          action:[
-            "switch",
-            name
-          ],
-
-          move:null,
-
-          category:"Switch",
-
-          score,
-
-          estimatedDamage:
-            name === "Wigglytuff"
-              ? 111
-              : 91,
-
-          incomingDamage:
-            name === "Wigglytuff"
-              ? 193
-              : 165,
-
-          typeEffect:
-            name === "Wigglytuff"
-              ? 2
-              : 1,
-
-          reason
-
-        });
-
       }
-    );
 
 
-    /*
-     * ==========================================
-     * 並べ替え
-     * ==========================================
-     */
+      /*
+       * 素早さ
+       */
+      const benchSpeed =
+        Number(
+          benchPokemon?.speed ??
+          (
+            typeof base === "function"
+              ? base(name).spe
+              : 0
+          ) ??
+          0
+        );
+
+
+      if (
+        benchSpeed >
+        opponentSpeed
+      ) {
+
+        score += 10;
+
+        reason.push(
+          "交代先が相手より速い"
+        );
+
+      } else {
+
+        score -= 5;
+
+        reason.push(
+          "交代先が相手より遅い"
+        );
+      }
+
+
+      return {
+
+        action:[
+          "switch",
+          name
+        ],
+
+        move:null,
+
+        category:"Switch",
+
+        score:
+          Math.round(
+            score * 10
+          ) / 10,
+
+        estimatedDamage:
+          bestOutgoing?.damage ?? 0,
+
+        incomingDamage:
+          bestIncoming?.damage ?? 0,
+
+        typeEffect:
+          bestOutgoing?.typeEffect ?? 1,
+
+        reason:
+          reason
+      };
+    }
+
+
+    for (
+      const benchPokemon of bench
+    ) {
+
+      const result =
+        evaluateSwitch(
+          benchPokemon
+        );
+
+      if (result) {
+        candidates.push(result);
+      }
+    }
+
+
+    /* =========================
+       候補を並べる
+    ========================= */
 
     candidates.sort(
-      function(a,b){
-
-        return b.score - a.score;
-
-      }
+      (a, b) =>
+        b.score - a.score
     );
 
 
-    /*
-     * ==========================================
-     * 結果
-     * ==========================================
-     */
+    /* =========================
+       結果
+    ========================= */
 
     const result = {
 
-      input:{
+      input: {
 
-        me:me.name,
+        me:
+          myName,
 
-        opponent:opp.name,
+        opponent:
+          oppName,
 
-        mySpeed,
+        mySpeed:
+          mySpeed,
 
-        opponentSpeed
-
+        opponentSpeed:
+          opponentSpeed
       },
 
       bestAction:
         candidates[0] || null,
 
       candidates:
-        candidates.slice(0,10),
+        candidates.slice(0, 10),
 
       note:
-        "タイプ相性・素早さ・STAB・状態異常・交代候補を考慮したブラウザ版軽量AI"
-
+        "タイプ相性・STAB・技威力・素早さ・命中率・交代先を考慮するブラウザ版軽量対戦AI"
     };
 
 
-    document
-      .getElementById("battleOut")
-      .textContent =
-      formatBattleJapanese(result);
+    /*
+     * 日本語表示
+     */
+    document.getElementById(
+      "battleOut"
+    ).textContent =
+      typeof formatBattleJapanese ===
+      "function"
+        ? formatBattleJapanese(result)
+        : JSON.stringify(
+            result,
+            null,
+            2
+          );
 
 
-  }
+  } catch (e) {
 
-  catch(e){
-
-    document
-      .getElementById("battleOut")
-      .textContent =
+    document.getElementById(
+      "battleOut"
+    ).textContent =
       "エラー: " +
       e.message;
 
-
     console.error(e);
-
   }
-
-}
-
-
-/* ==================================================
-   日本語表示
-================================================== */
-
-function formatBattleJapanese(data){
-
-  if(!data){
-
-    return "AIの結果がありません。";
-
-  }
-
-
-  const best =
-    data.bestAction;
-
-
-  const candidates =
-    data.candidates || [];
-
-
-  const input =
-    data.input || {};
-
-
-  let text = "";
-
-
-  text +=
-    "🧠 対戦AIのおすすめ\n";
-
-  text +=
-    "━━━━━━━━━━━━━━━━\n\n";
-
-
-  text +=
-    "⚔️ 現在の対面\n";
-
-  text +=
-    "自分： " +
-    input.me +
-    "\n";
-
-  text +=
-    "相手： " +
-    input.opponent +
-    "\n\n";
-
-
-  /*
-   * おすすめ
-   */
-
-  if(best){
-
-    if(
-      best.action &&
-      best.action[0] === "switch"
-    ){
-
-      text +=
-        "🔄 おすすめ：" +
-        best.action[1] +
-        " に交代\n\n";
-
-
-      text +=
-        "【理由】\n";
-
-
-      best.reason.forEach(
-        function(reason){
-
-          text +=
-            "・" +
-            translateReason(reason) +
-            "\n";
-
-        }
-      );
-
-
-      text +=
-        "\n【予想ダメージ】\n";
-
-
-      text +=
-        "・相手に与える：約" +
-        best.estimatedDamage +
-        "\n";
-
-
-      text +=
-        "・自分が受ける：約" +
-        best.incomingDamage +
-        "\n";
-
-    }
-
-    else{
-
-      text +=
-        "⚔️ おすすめ：" +
-        best.move +
-        "\n\n";
-
-
-      text +=
-        "【理由】\n";
-
-
-      best.reason.forEach(
-        function(reason){
-
-          text +=
-            "・" +
-            translateReason(reason) +
-            "\n";
-
-        }
-      );
-
-
-      text +=
-        "\n【予想ダメージ】\n";
-
-      text +=
-        "・約" +
-        best.estimatedDamage +
-        "\n";
-
-    }
-
-  }
-
-
-  /*
-   * 候補
-   */
-
-  text +=
-    "\n━━━━━━━━━━━━━━━━\n";
-
-  text +=
-    "📋 その他の候補\n\n";
-
-
-  candidates.forEach(
-    function(candidate,index){
-
-      text +=
-        (index + 1) +
-        ". ";
-
-
-      if(
-        candidate.action[0] ===
-        "switch"
-      ){
-
-        text +=
-          "🔄 " +
-          candidate.action[1] +
-          " に交代";
-
-      }
-
-      else{
-
-        text +=
-          "⚔️ " +
-          candidate.move;
-
-      }
-
-
-      text +=
-        "　（評価：" +
-        candidate.score +
-        "）\n";
-
-
-      if(
-        candidate.reason &&
-        candidate.reason.length
-      ){
-
-        text +=
-          "   理由：";
-
-
-        text +=
-          candidate.reason
-            .map(translateReason)
-            .join("、");
-
-
-        text +=
-          "\n";
-
-      }
-
-
-      if(
-        candidate.estimatedDamage >
-        0
-      ){
-
-        text +=
-          "   与ダメージ：約" +
-          candidate.estimatedDamage +
-          "\n";
-
-      }
-
-
-      if(
-        candidate.incomingDamage >
-        0
-      ){
-
-        text +=
-          "   被ダメージ：約" +
-          candidate.incomingDamage +
-          "\n";
-
-      }
-
-
-      text += "\n";
-
-    }
-  );
-
-
-  return text;
-
-}
-
-
-/* ==================================================
-   理由を日本語にする
-================================================== */
-
-function translateReason(reason){
-
-  const map = {
-
-    "無効":
-      "相手には無効",
-
-    "効果抜群":
-      "効果抜群を狙える",
-
-    "いまひとつ":
-      "効果はいまひとつ",
-
-    "STAB":
-      "タイプ一致技",
-
-    "状態異常":
-      "状態異常を狙える",
-
-    "Protect":
-      "Protectで相手の攻撃を防げる",
-
-    "交代可能":
-      "攻撃後に交代できる",
-
-    "相手が先に動く可能性":
-      "相手が先に動く可能性がある",
-
-    "こちらが先に動く可能性":
-      "自分が先に動く可能性がある",
-
-    "交代先から効果抜群を狙える":
-      "交代先から効果抜群を狙える",
-
-    "交代先が相手より遅い":
-      "交代先のほうが相手より遅い",
-
-    "相手の攻撃が弱点":
-      "相手の攻撃が弱点になる"
-
-  };
-
-
-  return map[reason] || reason;
-
-}
-
-
-/* ==================================================
-   ① パーティー
-================================================== */
-
-function makeTeam(){
-
-  document
-    .getElementById("teamOut")
-    .textContent =
-    "パーティー構築機能は準備中です。\n\n" +
-    "まず④対戦AIを使用できます。";
-
 }
 
 
