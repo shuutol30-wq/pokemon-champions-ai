@@ -1875,66 +1875,239 @@ document.getElementById("battleOut").textContent =
 }
 
 function formatBattleJapanese(data) {
-  if (!data) return "AIの結果がありません。";
+  if (!data) {
+    return "AIの結果がありません。";
+  }
 
   const best = data.bestAction;
   const candidates = data.candidates || [];
+  const input = data.input || {};
 
   let text = "";
 
-  text += "🧠 対戦AIのおすすめ\n";
+  // =========================
+  // 基本情報
+  // =========================
+  text += "🧠 対戦AIおすすめ\n";
   text += "━━━━━━━━━━━━━━━━\n\n";
 
+  if (input.me && input.opponent) {
+    text += "⚔️ 現在の対面\n";
+    text += "自分： " + input.me + "\n";
+    text += "相手： " + input.opponent + "\n\n";
+  }
+
+  // =========================
+  // AIおすすめ
+  // =========================
   if (best) {
+
+    // -------------------------
+    // 交代
+    // -------------------------
     if (best.action && best.action[0] === "switch") {
+
       const target = best.action[1];
 
       text += "🔄 おすすめ：";
       text += target + " に交代\n\n";
 
-      text += "【理由】\n";
+      text += "🎯 次の狙い\n";
+
+      const nextMove = findBestMoveForTarget(
+        data,
+        target
+      );
+
+      if (nextMove) {
+        text += "・" + nextMove.move;
+
+        if (nextMove.typeEffect >= 2) {
+          text += " → 効果抜群";
+        } else if (
+          nextMove.typeEffect > 0 &&
+          nextMove.typeEffect < 1
+        ) {
+          text += " → 効果はいまひとつ";
+        } else if (nextMove.typeEffect === 0) {
+          text += " → 無効";
+        }
+
+        text += "\n";
+      } else {
+        text += "・交代後の技はまだ計算できません\n";
+      }
+
+      text += "\n";
+
+      text += "📌 交代する理由\n";
 
       if (best.reason && best.reason.length) {
-        best.reason.forEach(r => {
-          text += "・" + translateBattleReason(r) + "\n";
+        best.reason.forEach(function(reason) {
+          text += "・" + translateBattleReason(reason) + "\n";
         });
       }
 
       if (best.estimatedDamage != null) {
-        text += "\n【予想ダメージ】\n";
-        text += "・相手に与える：約" + best.estimatedDamage + "\n";
+        text += "\n💥 交代後の予想ダメージ\n";
+        text += "・相手に与える：約" +
+          best.estimatedDamage + "\n";
       }
 
       if (best.incomingDamage != null) {
-        text += "・自分が受ける：約" + best.incomingDamage + "\n";
+        text += "・自分が受ける：約" +
+          best.incomingDamage + "\n";
       }
 
-    } else if (best.action && best.action[0] === "move") {
-      text += "⚔️ おすすめ技：";
-      text += (best.move || best.action[1]) + "\n\n";
+      text += "\n⚠️ 注意\n";
 
-      text += "【理由】\n";
+      if (
+        input.mySpeed != null &&
+        input.opponentSpeed != null
+      ) {
+        if (input.opponentSpeed > input.mySpeed) {
+          text += "・相手のほうが速い\n";
+        } else if (input.opponentSpeed < input.mySpeed) {
+          text += "・自分のほうが速い\n";
+        } else {
+          text += "・素早さは同じ\n";
+        }
+      }
+
+    // -------------------------
+    // 技
+    // -------------------------
+    } else if (
+      best.action &&
+      best.action[0] === "move"
+    ) {
+
+      const move = best.move || best.action[1];
+
+      text += "⚔️ おすすめ技：";
+      text += move + "\n\n";
+
+      text += "🎯 この技を使う理由\n";
 
       if (best.reason && best.reason.length) {
-        best.reason.forEach(r => {
-          text += "・" + translateBattleReason(r) + "\n";
+        best.reason.forEach(function(reason) {
+          text += "・" + translateBattleReason(reason) + "\n";
         });
       }
 
       if (best.estimatedDamage != null) {
-        text += "\n【予想ダメージ】\n";
+        text += "\n💥 予想ダメージ\n";
         text += "・約" + best.estimatedDamage + "\n";
+      }
+
+      if (best.typeEffect != null) {
+        text += "\n📊 タイプ相性\n";
+
+        if (best.typeEffect === 0) {
+          text += "・無効\n";
+        } else if (best.typeEffect >= 2) {
+          text += "・効果抜群\n";
+        } else if (
+          best.typeEffect > 0 &&
+          best.typeEffect < 1
+        ) {
+          text += "・効果はいまひとつ\n";
+        } else {
+          text += "・等倍\n";
+        }
+      }
+
+      if (
+        input.mySpeed != null &&
+        input.opponentSpeed != null
+      ) {
+        text += "\n⚡ 素早さ\n";
+
+        if (input.mySpeed > input.opponentSpeed) {
+          text += "・自分が先に動く可能性が高い\n";
+        } else if (
+          input.mySpeed < input.opponentSpeed
+        ) {
+          text += "・相手が先に動く可能性が高い\n";
+        } else {
+          text += "・素早さは同じ\n";
+        }
       }
     }
   }
 
+  // =========================
+  // 次の展開
+  // =========================
+  text += "\n━━━━━━━━━━━━━━━━\n";
+  text += "🔮 次の展開予測\n\n";
+
+  if (
+    best &&
+    best.action &&
+    best.action[0] === "switch"
+  ) {
+
+    const target = best.action[1];
+
+    text += "① " + input.me +
+      " → " + target + " に交代\n";
+
+    const nextMove = findBestMoveForTarget(
+      data,
+      target
+    );
+
+    if (nextMove) {
+      text += "② 次のターンは「" +
+        nextMove.move + "」を狙う\n";
+
+      if (nextMove.typeEffect >= 2) {
+        text += "③ 相手に効果抜群を狙える\n";
+      } else if (nextMove.typeEffect === 0) {
+        text += "③ この技は相手に無効\n";
+      } else {
+        text += "③ 相性を見ながら攻撃\n";
+      }
+    } else {
+      text += "② 交代後の最適技を計算中\n";
+    }
+
+  } else if (
+    best &&
+    best.action &&
+    best.action[0] === "move"
+  ) {
+
+    const move = best.move || best.action[1];
+
+    text += "① 「" + move + "」を使用\n";
+
+    if (
+      best.typeEffect != null &&
+      best.typeEffect >= 2
+    ) {
+      text += "② 効果抜群を狙う\n";
+    } else if (
+      best.typeEffect === 0
+    ) {
+      text += "② この技は相手に無効なので注意\n";
+    } else {
+      text += "② 相手の反応を見て次の行動を選択\n";
+    }
+  }
+
+  // =========================
+  // 候補一覧
+  // =========================
   text += "\n━━━━━━━━━━━━━━━━\n";
   text += "📋 その他の候補\n\n";
 
-  candidates.forEach((c, i) => {
+  candidates.forEach(function(c, index) {
+
     const action = c.action || [];
 
-    text += (i + 1) + ". ";
+    text += (index + 1) + ". ";
 
     if (action[0] === "switch") {
       text += "🔄 " + action[1] + " に交代";
@@ -1952,16 +2125,26 @@ function formatBattleJapanese(data) {
 
     if (c.reason && c.reason.length) {
       text += "   理由：";
-      text += c.reason.map(translateBattleReason).join("、");
+      text += c.reason
+        .map(translateBattleReason)
+        .join("、");
       text += "\n";
     }
 
-    if (c.estimatedDamage != null && c.estimatedDamage > 0) {
-      text += "   与ダメージ：約" + c.estimatedDamage + "\n";
+    if (
+      c.estimatedDamage != null &&
+      c.estimatedDamage > 0
+    ) {
+      text += "   与ダメージ：約" +
+        c.estimatedDamage + "\n";
     }
 
-    if (c.incomingDamage != null && c.incomingDamage > 0) {
-      text += "   被ダメージ：約" + c.incomingDamage + "\n";
+    if (
+      c.incomingDamage != null &&
+      c.incomingDamage > 0
+    ) {
+      text += "   被ダメージ：約" +
+        c.incomingDamage + "\n";
     }
 
     text += "\n";
@@ -1971,25 +2154,83 @@ function formatBattleJapanese(data) {
 }
 
 
+// ======================================
+// 交代先の次のおすすめ技を探す
+// ======================================
+function findBestMoveForTarget(data, target) {
+
+  if (!data || !data.candidates) {
+    return null;
+  }
+
+  // 現在の候補の中から
+  // そのポケモンに関係する技を探す
+  for (let i = 0; i < data.candidates.length; i++) {
+
+    const c = data.candidates[i];
+
+    if (
+      c.action &&
+      c.action[0] === "move" &&
+      c.move
+    ) {
+      return c;
+    }
+  }
+
+  return null;
+}
+
+
+// ======================================
+// AI内部用の理由を日本語に変換
+// ======================================
 function translateBattleReason(reason) {
+
   const map = {
-    "無効": "相手には無効",
-    "半減": "相手に半減される",
-    "効果いまひとつ": "効果はいまひとつ",
-    "効果抜群": "効果抜群を狙える",
-    "STAB": "タイプ一致技",
-    "状態異常": "状態異常を狙える",
-    "Protect": "Protectで相手の攻撃を防げる",
-    "交代可能": "攻撃後に交代できる",
-    "相手が先に動く可能性": "相手が先に動く可能性がある",
-    "交代先から効果抜群を狙える": "交代先から効果抜群を狙える",
-    "交代先が相手より遅い": "交代先のほうが相手より遅い",
-    "相手の攻撃が弱点": "相手の攻撃が弱点になる",
-    "相手に等倍打点": "相手に等倍のダメージを与えられる"
+    "無効":
+      "相手には無効",
+
+    "半減":
+      "相手に半減される",
+
+    "効果いまひとつ":
+      "効果はいまひとつ",
+
+    "効果抜群":
+      "効果抜群を狙える",
+
+    "STAB":
+      "タイプ一致技",
+
+    "状態異常":
+      "状態異常を狙える",
+
+    "Protect":
+      "Protectで相手の攻撃を防げる",
+
+    "交代可能":
+      "攻撃後に交代できる",
+
+    "相手が先に動く可能性":
+      "相手が先に動く可能性がある",
+
+    "交代先から効果抜群を狙える":
+      "交代先から効果抜群を狙える",
+
+    "交代先が相手より遅い":
+      "交代先のほうが相手より遅い",
+
+    "相手の攻撃が弱点":
+      "相手の攻撃が弱点になる",
+
+    "相手に等倍打点":
+      "相手に等倍のダメージを与えられる"
   };
 
   return map[reason] || reason;
 }
+```
 
 /* =========================
    ⑤ 対戦レビュー
