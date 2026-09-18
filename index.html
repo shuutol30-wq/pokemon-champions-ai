@@ -1860,14 +1860,8 @@ function battle(){
         "技だけでなくベンチへの交代候補も評価するブラウザ版軽量対戦AI"
     };
 
-    document.getElementById(
-      "battleOut"
-    ).textContent =
-      JSON.stringify(
-        result,
-        null,
-        2
-      );
+document.getElementById("battleOut").textContent =
+  formatBattleJapanese(result);
 
   }catch(e){
 
@@ -1880,7 +1874,122 @@ function battle(){
   }
 }
 
+function formatBattleJapanese(data) {
+  if (!data) return "AIの結果がありません。";
 
+  const best = data.bestAction;
+  const candidates = data.candidates || [];
+
+  let text = "";
+
+  text += "🧠 対戦AIのおすすめ\n";
+  text += "━━━━━━━━━━━━━━━━\n\n";
+
+  if (best) {
+    if (best.action && best.action[0] === "switch") {
+      const target = best.action[1];
+
+      text += "🔄 おすすめ：";
+      text += target + " に交代\n\n";
+
+      text += "【理由】\n";
+
+      if (best.reason && best.reason.length) {
+        best.reason.forEach(r => {
+          text += "・" + translateBattleReason(r) + "\n";
+        });
+      }
+
+      if (best.estimatedDamage != null) {
+        text += "\n【予想ダメージ】\n";
+        text += "・相手に与える：約" + best.estimatedDamage + "\n";
+      }
+
+      if (best.incomingDamage != null) {
+        text += "・自分が受ける：約" + best.incomingDamage + "\n";
+      }
+
+    } else if (best.action && best.action[0] === "move") {
+      text += "⚔️ おすすめ技：";
+      text += (best.move || best.action[1]) + "\n\n";
+
+      text += "【理由】\n";
+
+      if (best.reason && best.reason.length) {
+        best.reason.forEach(r => {
+          text += "・" + translateBattleReason(r) + "\n";
+        });
+      }
+
+      if (best.estimatedDamage != null) {
+        text += "\n【予想ダメージ】\n";
+        text += "・約" + best.estimatedDamage + "\n";
+      }
+    }
+  }
+
+  text += "\n━━━━━━━━━━━━━━━━\n";
+  text += "📋 その他の候補\n\n";
+
+  candidates.forEach((c, i) => {
+    const action = c.action || [];
+
+    text += (i + 1) + ". ";
+
+    if (action[0] === "switch") {
+      text += "🔄 " + action[1] + " に交代";
+    } else if (action[0] === "move") {
+      text += "⚔️ " + (c.move || action[1]);
+    } else {
+      text += action.join(" ");
+    }
+
+    if (c.score != null) {
+      text += "　（評価：" + c.score + "）";
+    }
+
+    text += "\n";
+
+    if (c.reason && c.reason.length) {
+      text += "   理由：";
+      text += c.reason.map(translateBattleReason).join("、");
+      text += "\n";
+    }
+
+    if (c.estimatedDamage != null && c.estimatedDamage > 0) {
+      text += "   与ダメージ：約" + c.estimatedDamage + "\n";
+    }
+
+    if (c.incomingDamage != null && c.incomingDamage > 0) {
+      text += "   被ダメージ：約" + c.incomingDamage + "\n";
+    }
+
+    text += "\n";
+  });
+
+  return text;
+}
+
+
+function translateBattleReason(reason) {
+  const map = {
+    "無効": "相手には無効",
+    "半減": "相手に半減される",
+    "効果いまひとつ": "効果はいまひとつ",
+    "効果抜群": "効果抜群を狙える",
+    "STAB": "タイプ一致技",
+    "状態異常": "状態異常を狙える",
+    "Protect": "Protectで相手の攻撃を防げる",
+    "交代可能": "攻撃後に交代できる",
+    "相手が先に動く可能性": "相手が先に動く可能性がある",
+    "交代先から効果抜群を狙える": "交代先から効果抜群を狙える",
+    "交代先が相手より遅い": "交代先のほうが相手より遅い",
+    "相手の攻撃が弱点": "相手の攻撃が弱点になる",
+    "相手に等倍打点": "相手に等倍のダメージを与えられる"
+  };
+
+  return map[reason] || reason;
+}
 
 /* =========================
    ⑤ 対戦レビュー
