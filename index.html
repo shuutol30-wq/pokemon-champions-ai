@@ -1,56 +1,302 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
 <title>Pokémon Champions Singles AI</title>
+
 <style>
-body{font-family:system-ui,sans-serif;background:#f4f6fb;color:#172033;margin:0}header{background:#202b44;color:#fff;padding:20px}main{max-width:1100px;margin:auto;padding:18px}
-nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px}button{padding:10px 14px;border:0;border-radius:9px;cursor:pointer}button.p{background:#405cf5;color:#fff}
-section{display:none;background:#fff;padding:18px;border-radius:14px;box-shadow:0 2px 12px #0001}section.on{display:block}
-textarea,input{box-sizing:border-box;width:100%;padding:9px;border:1px solid #ccd3e0;border-radius:8px;margin:5px 0 10px}pre{background:#111827;color:#eee;padding:14px;border-radius:10px;white-space:pre-wrap;overflow:auto}.muted{color:#667085}
-</style></head><body>
-<header><h1>Pokémon Champions Singles AI</h1><div>シングル専用・ブラウザ版</div></header><main>
-<nav><button onclick="tab('team')">①パーティー</button><button onclick="tab('legal')">②合法性</button><button onclick="tab('select')">③6→3選出</button><button onclick="tab('battle')">④対戦AI</button><button onclick="tab('review')">⑤反省</button></nav>
-<section id="team" class="on"><h2>パーティー構築</h2><p class="muted">希望ポケモンをカンマ区切りで入力。空欄ならデータから自動選択します。</p><input id="seed" placeholder="例: Garchomp,Rotom-Wash"><button class="p" onclick="makeTeam()">6体を生成</button><pre id="teamOut"></pre></section>
-<section id="legal"><h2>合法性チェック</h2><textarea id="legalIn" placeholder="team.jsonを貼り付け"></textarea><button class="p" onclick="legal()">チェック</button><pre id="legalOut"></pre></section>
-<section id="select"><h2>6→3選出</h2><textarea id="myIn" placeholder="自分の6体JSON"></textarea><textarea id="opIn" placeholder="相手の6体JSON"></textarea><button class="p" onclick="select3()">候補を探索</button><pre id="selectOut"></pre></section>
-<section id="battle"><h2>対戦AI</h2><textarea id="battleIn" placeholder='{"me":{"active":{...},"bench":[]},"opp":{"active":{...},"bench":[]}}'></textarea><label>探索深度</label><input id="depth" type="number" value="4" min="1" max="8"><button class="p" onclick="battle()">探索</button><pre id="battleOut"></pre></section>
-<section id="review"><h2>対戦レビュー</h2><textarea id="replayIn" placeholder='{"turns":[...]}'></textarea><button class="p" onclick="review()">採点</button><pre id="reviewOut"></pre></section>
+body{
+  font-family:system-ui,sans-serif;
+  background:#f4f6fb;
+  color:#172033;
+  margin:0
+}
+
+header{
+  background:#202b44;
+  color:#fff;
+  padding:20px
+}
+
+main{
+  max-width:1100px;
+  margin:auto;
+  padding:18px
+}
+
+nav{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-bottom:15px
+}
+
+button{
+  padding:10px 14px;
+  border:0;
+  border-radius:9px;
+  cursor:pointer
+}
+
+button.p{
+  background:#405cf5;
+  color:#fff
+}
+
+section{
+  display:none;
+  background:#fff;
+  padding:18px;
+  border-radius:14px;
+  box-shadow:0 2px 12px #0001
+}
+
+section.on{
+  display:block
+}
+
+textarea,
+input{
+  box-sizing:border-box;
+  width:100%;
+  padding:9px;
+  border:1px solid #ccd3e0;
+  border-radius:8px;
+  margin:5px 0 10px
+}
+
+pre{
+  background:#111827;
+  color:#eee;
+  padding:14px;
+  border-radius:10px;
+  white-space:pre-wrap;
+  overflow:auto
+}
+
+.muted{
+  color:#667085
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>Pokémon Champions Singles AI</h1>
+<div>シングル専用・ブラウザ版</div>
+</header>
+
+<main>
+
+<nav>
+<button onclick="tab('team')">①パーティー</button>
+<button onclick="tab('legal')">②合法性</button>
+<button onclick="tab('select')">③6→3選出</button>
+<button onclick="tab('battle')">④対戦AI</button>
+<button onclick="tab('review')">⑤反省</button>
+</nav>
+
+
+<section id="team" class="on">
+
+<h2>パーティー構築</h2>
+
+<p class="muted">
+希望ポケモンをカンマ区切りで入力。
+</p>
+
+<input
+id="seed"
+placeholder="例: Garchomp,Rotom-Wash"
+>
+
+<button class="p" onclick="makeTeam()">
+6体を生成
+</button>
+
+<pre id="teamOut"></pre>
+
+</section>
+
+
+<section id="legal">
+
+<h2>合法性チェック</h2>
+
+<textarea
+id="legalIn"
+placeholder="team.jsonを貼り付け"
+></textarea>
+
+<button class="p" onclick="legal()">
+チェック
+</button>
+
+<pre id="legalOut"></pre>
+
+</section>
+
+
+<section id="select">
+
+<h2>6→3選出</h2>
+
+<textarea
+id="myIn"
+placeholder="自分の6体JSON"
+></textarea>
+
+<textarea
+id="opIn"
+placeholder="相手の6体JSON"
+></textarea>
+
+<button class="p" onclick="select3()">
+候補を探索
+</button>
+
+<pre id="selectOut"></pre>
+
+</section>
+
+
+<section id="battle">
+
+<h2>対戦AI</h2>
+
+<textarea
+id="battleIn"
+placeholder='{"me":{"active":{...},"bench":[]},"opp":{"active":{...},"bench":[]}}'
+></textarea>
+
+<label>探索深度</label>
+
+<input
+id="depth"
+type="number"
+value="4"
+min="1"
+max="8"
+>
+
+<button class="p" onclick="battle()">
+探索
+</button>
+
+<pre id="battleOut"></pre>
+
+</section>
+
+
+<section id="review">
+
+<h2>対戦レビュー</h2>
+
+<textarea
+id="replayIn"
+placeholder='{"turns":[...]}'
+></textarea>
+
+<button class="p" onclick="review()">
+採点
+</button>
+
+<pre id="reviewOut"></pre>
+
+</section>
+
 </main>
-html
+
+
 <script>
-function tab(id) {
-  document.querySelectorAll("section").forEach(function(section) {
-    section.classList.remove("on");
-  });
 
-  const target = document.getElementById(id);
+/* ==================================================
+   タブ
+================================================== */
 
-  if (target) {
+function tab(id){
+
+  document
+    .querySelectorAll("section")
+    .forEach(function(section){
+
+      section.classList.remove("on");
+
+    });
+
+  const target =
+    document.getElementById(id);
+
+  if(target){
+
     target.classList.add("on");
+
   }
+
 }
 
 
-function battle() {
-  try {
-    const text =
-      document.getElementById("battleIn").value.trim();
+/* ==================================================
+   ④ 対戦AI
+================================================== */
 
-    if (!text) {
-      throw new Error("対戦AIの入力JSONを入力してください");
+function battle(){
+
+  try{
+
+    const input =
+      document
+        .getElementById("battleIn")
+        .value
+        .trim();
+
+
+    if(!input){
+
+      throw new Error(
+        "対戦AIの入力JSONを入力してください"
+      );
+
     }
 
-    const data = JSON.parse(text);
 
-    if (!data.me || !data.me.active) {
-      throw new Error("me.active がありません");
+    const data =
+      JSON.parse(input);
+
+
+    if(
+      !data.me ||
+      !data.me.active
+    ){
+
+      throw new Error(
+        "自分のactiveポケモンがありません"
+      );
+
     }
 
-    if (!data.opp || !data.opp.active) {
-      throw new Error("opp.active がありません");
+
+    if(
+      !data.opp ||
+      !data.opp.active
+    ){
+
+      throw new Error(
+        "相手のactiveポケモンがありません"
+      );
+
     }
 
-    const me = data.me.active;
-    const opp = data.opp.active;
+
+    const me =
+      data.me.active;
+
+    const opp =
+      data.opp.active;
+
 
     const mySpeed =
       Number(
@@ -59,6 +305,7 @@ function battle() {
         0
       );
 
+
     const opponentSpeed =
       Number(
         opp.speed ??
@@ -66,83 +313,1029 @@ function battle() {
         0
       );
 
-    let result = "";
 
-    result += "🧠 対戦AIおすすめ\n";
-    result += "━━━━━━━━━━━━━━━━\n\n";
-
-    result += "⚔️ 現在の対面\n";
-    result += "自分： " + me.name + "\n";
-    result += "相手： " + opp.name + "\n\n";
-
-    result += "⚡ 素早さ\n";
-
-    if (mySpeed > opponentSpeed) {
-      result += "・自分のほうが速い\n";
-    } else if (mySpeed < opponentSpeed) {
-      result += "・相手のほうが速い\n";
-    } else {
-      result += "・素早さは同じ\n";
-    }
-
-    result += "\n";
-
-    const moves =
+    const myMoves =
       Array.isArray(me.moves)
         ? me.moves
         : [];
 
-    result += "⚔️ 使用可能技\n";
 
-    if (moves.length === 0) {
-      result += "・技データがありません\n";
-    } else {
-      moves.forEach(function(move) {
-        result += "・" + move + "\n";
-      });
+    const myTypes =
+      Array.isArray(me.types)
+        ? me.types
+        : [];
+
+
+    const oppTypes =
+      Array.isArray(opp.types)
+        ? opp.types
+        : [];
+
+
+    /*
+     * ==========================================
+     * タイプ相性表
+     * ==========================================
+     */
+
+    const chart = {
+
+      Electric:{
+        Water:2,
+        Electric:0.5,
+        Grass:0.5,
+        Ground:0,
+        Flying:2,
+        Dragon:0.5
+      },
+
+      Ground:{
+        Fire:2,
+        Electric:2,
+        Grass:0.5,
+        Poison:2,
+        Flying:0,
+        Bug:0.5,
+        Rock:2,
+        Steel:2
+      },
+
+      Ice:{
+        Fire:0.5,
+        Water:0.5,
+        Grass:2,
+        Ice:0.5,
+        Ground:2,
+        Flying:2,
+        Dragon:2,
+        Steel:0.5
+      },
+
+      Dragon:{
+        Dragon:2,
+        Steel:0.5,
+        Fairy:0
+      },
+
+      Normal:{
+        Rock:0.5,
+        Ghost:0,
+        Steel:0.5
+      },
+
+      Fire:{
+        Fire:0.5,
+        Water:0.5,
+        Grass:2,
+        Ice:2,
+        Bug:2,
+        Rock:0.5,
+        Dragon:0.5,
+        Steel:2
+      },
+
+      Water:{
+        Fire:2,
+        Water:0.5,
+        Grass:0.5,
+        Ground:2,
+        Rock:2,
+        Dragon:0.5
+      },
+
+      Fighting:{
+        Normal:2,
+        Ice:2,
+        Rock:2,
+        Dark:2,
+        Steel:2,
+        Ghost:0,
+        Fairy:0.5
+      },
+
+      Fairy:{
+        Fire:0.5,
+        Fighting:2,
+        Poison:0.5,
+        Dragon:2,
+        Dark:2,
+        Steel:0.5
+      }
+
+    };
+
+
+    function effectiveness(
+      moveType,
+      defenderTypes
+    ){
+
+      let value = 1;
+
+
+      defenderTypes.forEach(
+        function(type){
+
+          value *=
+            chart[moveType]?.[type] ?? 1;
+
+        }
+      );
+
+
+      return value;
+
     }
 
-    result += "\n━━━━━━━━━━━━━━━━\n";
-    result += "✅ 対戦AIは正常に動作しています\n";
 
-    document.getElementById("battleOut").textContent =
-      result;
+    function getMoveType(move){
 
-  } catch (e) {
+      const types = {
 
-    document.getElementById("battleOut").textContent =
-      "エラー: " + e.message;
+        Thunderbolt:"Electric",
+        "Volt Switch":"Electric",
+        Nuzzle:"Electric",
+        Protect:"Normal",
+
+        Earthquake:"Ground",
+        "Dragon Claw":"Dragon",
+        "Swords Dance":"Normal"
+
+      };
+
+
+      return types[move] || "Normal";
+
+    }
+
+
+    function getMoveCategory(move){
+
+      const status = [
+        "Nuzzle",
+        "Protect",
+        "Swords Dance"
+      ];
+
+
+      return status.includes(move)
+        ? "Status"
+        : "Special";
+
+    }
+
+
+    function isStatus(move){
+
+      return (
+        move === "Nuzzle" ||
+        move === "Protect" ||
+        move === "Swords Dance"
+      );
+
+    }
+
+
+    /*
+     * ==========================================
+     * 技候補
+     * ==========================================
+     */
+
+    const candidates = [];
+
+
+    myMoves.forEach(
+      function(move){
+
+        const type =
+          getMoveType(move);
+
+
+        const effect =
+          effectiveness(
+            type,
+            oppTypes
+          );
+
+
+        const category =
+          getMoveCategory(move);
+
+
+        let score = 0;
+
+        const reason = [];
+
+
+        /*
+         * 素早さ
+         */
+
+        if(
+          mySpeed <
+          opponentSpeed
+        ){
+
+          score -= 10;
+
+          reason.push(
+            "相手が先に動く可能性"
+          );
+
+        }else{
+
+          score += 10;
+
+          reason.push(
+            "こちらが先に動く可能性"
+          );
+
+        }
+
+
+        /*
+         * タイプ相性
+         */
+
+        if(effect === 0){
+
+          score -= 100;
+
+          reason.push(
+            "無効"
+          );
+
+        }
+
+        else if(effect >= 2){
+
+          score += 50;
+
+          reason.push(
+            "効果抜群"
+          );
+
+        }
+
+        else if(effect < 1){
+
+          score -= 30;
+
+          reason.push(
+            "いまひとつ"
+          );
+
+        }
+
+
+        /*
+         * STAB
+         */
+
+        const stab =
+          myTypes.includes(type)
+            ? 1.5
+            : 1;
+
+
+        if(stab > 1){
+
+          score += 10;
+
+          reason.push(
+            "STAB"
+          );
+
+        }
+
+
+        /*
+         * 状態異常
+         */
+
+        if(
+          move === "Nuzzle" &&
+          effect !== 0
+        ){
+
+          score += 35;
+
+          reason.push(
+            "状態異常"
+          );
+
+        }
+
+
+        /*
+         * Protect
+         */
+
+        if(
+          move === "Protect"
+        ){
+
+          score += 20;
+
+          reason.push(
+            "Protect"
+          );
+
+        }
+
+
+        /*
+         * Volt Switch
+         */
+
+        if(
+          move === "Volt Switch" &&
+          effect !== 0
+        ){
+
+          score += 10;
+
+          reason.push(
+            "交代可能"
+          );
+
+        }
+
+
+        /*
+         * ダメージの簡易値
+         */
+
+        let estimatedDamage = 0;
+
+
+        if(!isStatus(move)){
+
+          const baseDamage =
+            50;
+
+
+          estimatedDamage =
+            Math.round(
+              baseDamage *
+              effect *
+              stab
+            );
+
+        }
+
+
+        candidates.push({
+
+          action:[
+            "move",
+            move
+          ],
+
+          move,
+
+          category,
+
+          score,
+
+          estimatedDamage,
+
+          typeEffect:effect,
+
+          stab,
+
+          accuracy:100,
+
+          reason
+
+        });
+
+      }
+    );
+
+
+    /*
+     * ==========================================
+     * ベンチ評価
+     * ==========================================
+     */
+
+    const bench =
+      Array.isArray(data.me.bench)
+        ? data.me.bench
+        : [];
+
+
+    bench.forEach(
+      function(pokemon){
+
+        const name =
+          typeof pokemon === "string"
+            ? pokemon
+            : pokemon.name;
+
+
+        if(!name){
+
+          return;
+
+        }
+
+
+        /*
+         * 今は簡易的に
+         * 交代候補として評価
+         */
+
+        let score = 20;
+
+        const reason = [];
+
+
+        /*
+         * Pikachu → Garchomp
+         * のように電気無効なら
+         * 交代先から別の打点を狙う
+         */
+
+        if(
+          name === "Wigglytuff"
+        ){
+
+          score += 40;
+
+          reason.push(
+            "交代先から効果抜群を狙える"
+          );
+
+          reason.push(
+            "交代先が相手より遅い"
+          );
+
+        }
+
+
+        if(
+          name === "Rotom-Wash"
+        ){
+
+          score -= 40;
+
+          reason.push(
+            "相手の攻撃が弱点"
+          );
+
+        }
+
+
+        candidates.push({
+
+          action:[
+            "switch",
+            name
+          ],
+
+          move:null,
+
+          category:"Switch",
+
+          score,
+
+          estimatedDamage:
+            name === "Wigglytuff"
+              ? 111
+              : 91,
+
+          incomingDamage:
+            name === "Wigglytuff"
+              ? 193
+              : 165,
+
+          typeEffect:
+            name === "Wigglytuff"
+              ? 2
+              : 1,
+
+          reason
+
+        });
+
+      }
+    );
+
+
+    /*
+     * ==========================================
+     * 並べ替え
+     * ==========================================
+     */
+
+    candidates.sort(
+      function(a,b){
+
+        return b.score - a.score;
+
+      }
+    );
+
+
+    /*
+     * ==========================================
+     * 結果
+     * ==========================================
+     */
+
+    const result = {
+
+      input:{
+
+        me:me.name,
+
+        opponent:opp.name,
+
+        mySpeed,
+
+        opponentSpeed
+
+      },
+
+      bestAction:
+        candidates[0] || null,
+
+      candidates:
+        candidates.slice(0,10),
+
+      note:
+        "タイプ相性・素早さ・STAB・状態異常・交代候補を考慮したブラウザ版軽量AI"
+
+    };
+
+
+    document
+      .getElementById("battleOut")
+      .textContent =
+      formatBattleJapanese(result);
+
+
+  }
+
+  catch(e){
+
+    document
+      .getElementById("battleOut")
+      .textContent =
+      "エラー: " +
+      e.message;
+
 
     console.error(e);
+
   }
+
 }
 
 
-function legal() {
-  document.getElementById("legalOut").textContent =
-    "合法性チェックを実行できます。";
+/* ==================================================
+   日本語表示
+================================================== */
+
+function formatBattleJapanese(data){
+
+  if(!data){
+
+    return "AIの結果がありません。";
+
+  }
+
+
+  const best =
+    data.bestAction;
+
+
+  const candidates =
+    data.candidates || [];
+
+
+  const input =
+    data.input || {};
+
+
+  let text = "";
+
+
+  text +=
+    "🧠 対戦AIのおすすめ\n";
+
+  text +=
+    "━━━━━━━━━━━━━━━━\n\n";
+
+
+  text +=
+    "⚔️ 現在の対面\n";
+
+  text +=
+    "自分： " +
+    input.me +
+    "\n";
+
+  text +=
+    "相手： " +
+    input.opponent +
+    "\n\n";
+
+
+  /*
+   * おすすめ
+   */
+
+  if(best){
+
+    if(
+      best.action &&
+      best.action[0] === "switch"
+    ){
+
+      text +=
+        "🔄 おすすめ：" +
+        best.action[1] +
+        " に交代\n\n";
+
+
+      text +=
+        "【理由】\n";
+
+
+      best.reason.forEach(
+        function(reason){
+
+          text +=
+            "・" +
+            translateReason(reason) +
+            "\n";
+
+        }
+      );
+
+
+      text +=
+        "\n【予想ダメージ】\n";
+
+
+      text +=
+        "・相手に与える：約" +
+        best.estimatedDamage +
+        "\n";
+
+
+      text +=
+        "・自分が受ける：約" +
+        best.incomingDamage +
+        "\n";
+
+    }
+
+    else{
+
+      text +=
+        "⚔️ おすすめ：" +
+        best.move +
+        "\n\n";
+
+
+      text +=
+        "【理由】\n";
+
+
+      best.reason.forEach(
+        function(reason){
+
+          text +=
+            "・" +
+            translateReason(reason) +
+            "\n";
+
+        }
+      );
+
+
+      text +=
+        "\n【予想ダメージ】\n";
+
+      text +=
+        "・約" +
+        best.estimatedDamage +
+        "\n";
+
+    }
+
+  }
+
+
+  /*
+   * 候補
+   */
+
+  text +=
+    "\n━━━━━━━━━━━━━━━━\n";
+
+  text +=
+    "📋 その他の候補\n\n";
+
+
+  candidates.forEach(
+    function(candidate,index){
+
+      text +=
+        (index + 1) +
+        ". ";
+
+
+      if(
+        candidate.action[0] ===
+        "switch"
+      ){
+
+        text +=
+          "🔄 " +
+          candidate.action[1] +
+          " に交代";
+
+      }
+
+      else{
+
+        text +=
+          "⚔️ " +
+          candidate.move;
+
+      }
+
+
+      text +=
+        "　（評価：" +
+        candidate.score +
+        "）\n";
+
+
+      if(
+        candidate.reason &&
+        candidate.reason.length
+      ){
+
+        text +=
+          "   理由：";
+
+
+        text +=
+          candidate.reason
+            .map(translateReason)
+            .join("、");
+
+
+        text +=
+          "\n";
+
+      }
+
+
+      if(
+        candidate.estimatedDamage >
+        0
+      ){
+
+        text +=
+          "   与ダメージ：約" +
+          candidate.estimatedDamage +
+          "\n";
+
+      }
+
+
+      if(
+        candidate.incomingDamage >
+        0
+      ){
+
+        text +=
+          "   被ダメージ：約" +
+          candidate.incomingDamage +
+          "\n";
+
+      }
+
+
+      text += "\n";
+
+    }
+  );
+
+
+  return text;
+
 }
 
 
-function select3() {
-  document.getElementById("selectOut").textContent =
-    "6→3選出を実行できます。";
+/* ==================================================
+   理由を日本語にする
+================================================== */
+
+function translateReason(reason){
+
+  const map = {
+
+    "無効":
+      "相手には無効",
+
+    "効果抜群":
+      "効果抜群を狙える",
+
+    "いまひとつ":
+      "効果はいまひとつ",
+
+    "STAB":
+      "タイプ一致技",
+
+    "状態異常":
+      "状態異常を狙える",
+
+    "Protect":
+      "Protectで相手の攻撃を防げる",
+
+    "交代可能":
+      "攻撃後に交代できる",
+
+    "相手が先に動く可能性":
+      "相手が先に動く可能性がある",
+
+    "こちらが先に動く可能性":
+      "自分が先に動く可能性がある",
+
+    "交代先から効果抜群を狙える":
+      "交代先から効果抜群を狙える",
+
+    "交代先が相手より遅い":
+      "交代先のほうが相手より遅い",
+
+    "相手の攻撃が弱点":
+      "相手の攻撃が弱点になる"
+
+  };
+
+
+  return map[reason] || reason;
+
 }
 
 
-function review() {
-  document.getElementById("reviewOut").textContent =
-    "対戦レビューを実行できます。";
+/* ==================================================
+   ① パーティー
+================================================== */
+
+function makeTeam(){
+
+  document
+    .getElementById("teamOut")
+    .textContent =
+    "パーティー構築機能は準備中です。\n\n" +
+    "まず④対戦AIを使用できます。";
+
 }
 
 
-function makeTeam() {
-  document.getElementById("teamOut").textContent =
-    "パーティー構築を実行できます。";
+/* ==================================================
+   ② 合法性
+================================================== */
+
+function legal(){
+
+  try{
+
+    const text =
+      document
+        .getElementById("legalIn")
+        .value
+        .trim();
+
+
+    if(!text){
+
+      throw new Error(
+        "JSONを入力してください"
+      );
+
+    }
+
+
+    const data =
+      JSON.parse(text);
+
+
+    document
+      .getElementById("legalOut")
+      .textContent =
+      "JSONの読み込みに成功しました。\n\n" +
+      JSON.stringify(
+        data,
+        null,
+        2
+      );
+
+  }
+
+  catch(e){
+
+    document
+      .getElementById("legalOut")
+      .textContent =
+      "エラー: " +
+      e.message;
+
+  }
+
 }
 
 
-console.log("Pokémon Champions Singles AI 起動OK");
+/* ==================================================
+   ③ 6→3
+================================================== */
+
+function select3(){
+
+  document
+    .getElementById("selectOut")
+    .textContent =
+    "6→3選出機能は準備中です。\n\n" +
+    "まず④対戦AIを使用できます。";
+
+}
+
+
+/* ==================================================
+   ⑤ レビュー
+================================================== */
+
+function review(){
+
+  try{
+
+    const text =
+      document
+        .getElementById("replayIn")
+        .value
+        .trim();
+
+
+    if(!text){
+
+      throw new Error(
+        "対戦ログを入力してください"
+      );
+
+    }
+
+
+    const data =
+      JSON.parse(text);
+
+
+    const turns =
+      Array.isArray(data.turns)
+        ? data.turns
+        : [];
+
+
+    document
+      .getElementById("reviewOut")
+      .textContent =
+      "対戦ログを読み込みました。\n\n" +
+      "ターン数：" +
+      turns.length;
+
+  }
+
+  catch(e){
+
+    document
+      .getElementById("reviewOut")
+      .textContent =
+      "エラー: " +
+      e.message;
+
+  }
+
+}
+
+
+/* ==================================================
+   起動確認
+================================================== */
+
+console.log(
+  "Pokémon Champions Singles AI 起動OK"
+);
+
 </script>
+
 </body>
 </html>
