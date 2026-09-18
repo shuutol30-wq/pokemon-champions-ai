@@ -465,6 +465,24 @@ function findP(name) {
 
 }
 
+  console.log(
+  "D.pokemon件数:",
+  D.pokemon.length
+);
+
+console.log(
+  "Charizard検索:",
+  findP("Charizard")
+);
+
+console.log(
+  "Charizard候補:",
+  D.pokemon.filter(p =>
+    String(p.name || "")
+      .toLowerCase()
+      .includes("charizard")
+  )
+);
 
 /* =========================
    種族値取得
@@ -620,15 +638,16 @@ function battle() {
           );
 
 
-    const oppTypes =
-      Array.isArray(opp.types)
-        ? opp.types
-        : (
-            oppData &&
-            Array.isArray(oppData.types)
-              ? oppData.types
-              : []
-          );
+const oppTypes =
+  Array.isArray(opp.types) && opp.types.length > 0
+    ? opp.types
+    : (
+        oppData &&
+        Array.isArray(oppData.types) &&
+        oppData.types.length > 0
+          ? oppData.types
+          : []
+      );
     
 console.log(
   "相手:",
